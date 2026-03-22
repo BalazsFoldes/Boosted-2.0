@@ -1,0 +1,31 @@
+{
+  "id": "INT-004",
+  "date": "2025-10-14",
+  "method": "in_person",
+  "participant": {
+    "pseudonym": "Zétény",
+    "segment": "21 éves egyetemi hallgató, életmódot szeretne váltani ezért sportokban gondolkozik."
+  },
+  "consent": true,
+   "responses": {
+    "q1": "Hogyan követed most az edzéseidet vagy az egészségedet?",
+    "a1": "Nem használtam még semmilyen edzéssel kapcsolatos alkalmazást.",
+    "q2": "Milyen appokat próbáltál eddig?",
+    "a2": "Nem próbáltam még.",
+    "q3": "Mi motiválna, hogy hosszabb távon használd ezeket?",
+    "a3": "Ha egy helyen láthatnék csomó adatot magamról.",
+    "q4": "Van valami, amit hiányoltál a korábbi appokból?",
+    "a4": "Nem ismerem a hasonló appokat.",
+    "q5": "Mit jelentene számodra, ha ismerősökkel tudnál versenyezni vagy közös kihívásokat csinálni?",
+    "a5": "Minden bizonyára nagyon jó motiváció lehetne számomra."
+  },
+  "insights": [
+    "Nincs sok tapasztalata, kezdő felhasználóként akkor kezdené el használni az appot ha mindent egy helyen tudna követni."
+  ],
+  "pain_points": [
+    "Minden adat külön alkalmazásból elérhető."
+  ],
+  "quotes": [
+    "\"Ha egy rendszer összegezné mindezt, az hatalmas előny lenne.\""
+  ]
+}

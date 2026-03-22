@@ -1,0 +1,31 @@
+environment:
+  name: local-preview
+  description: >
+    Local preview environment for Sprint 2 MVP
+    (FastAPI backend with in-memory storage)
+
+services:
+  # Jelenleg csak backendünk van, a frontendet kikommenteltük vagy töröltük
+  # frontend:
+  #   framework: nextjs
+  #   port: 3000
+  #   ...
+
+  backend:
+    framework: fastapi
+    # A feladatkiírás példája (check :3000) miatt most a 3000-es porton indítjuk
+    port: 3000
+    # Ez a parancs indítja el a FastAPI szervert
+    start_command: "uvicorn app.main:app --host 0.0.0.0 --port 3000"
+    healthcheck:
+      path: /api/healthz
+      method: GET
+
+dependencies:
+  # Sprint 2-ben még in-memory adatbázist használunk, így ez opcionális
+  database:
+    type: in-memory
+    description: "Python dictionary based fake_db for Sprint 2"
+
+startup_order:
+  - backend

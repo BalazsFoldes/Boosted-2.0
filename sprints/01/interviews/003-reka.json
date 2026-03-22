@@ -1,0 +1,33 @@
+{
+  "id": "INT-003",
+  "date": "2025-10-14",
+  "method": "online",
+  "participant": {
+    "pseudonym": "Réka",
+    "segment": "20 éves orvostan hallgató aki egészségesebb életmódot szeretne"
+  },
+  "consent": true,
+  "responses": {
+    "q1": "Hogyan követed most az edzéseidet vagy az egészségedet?",
+    "a1": "Apple Health appban nézem a lépésszámot, de mást nem igazán követek.",
+    "q2": "Milyen appokat próbáltál eddig?",
+    "a2": "Nike Training Club, de gyorsan meguntam, mert nem motivált semmi.",
+    "q3": "Mi motiválna, hogy hosszabb távon használd ezeket?",
+    "a3": "Ha látnám, hogy a kis eredményeim is számítanak, és jutalmat kapnék érte.",
+    "q4": "Van valami, amit hiányoltál a korábbi appokból?",
+    "a4": "Egy átfogó nézet, ahol egyszerre látom a testmozgást, alvást és étkezést.",
+    "q5": "Mit jelentene számodra, ha ismerősökkel tudnál versenyezni vagy közös kihívásokat csinálni?",
+    "a5": "Kihívásokban szívesen részt vennék, ha nem csak a sportteljesítményről szólnának, hanem például a hidratálásról is."
+  },
+  "insights": [
+    "A jutalmazási rendszer erős motivációs eszköz lehet.",
+    "A felhasználó az integrált adatokban és az átfogó képen lát értéket."
+  ],
+  "pain_points": [
+    "Motiváció hiánya.",
+    "Széttagolt adatok külön appokban."
+  ],
+  "quotes": [
+    "\"Szeretem látni, ha valamiért jutalmat kapok, még ha csak virtuális is.\""
+  ]
+}

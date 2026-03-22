@@ -1,0 +1,33 @@
+{
+  "id": "INT-001",
+  "date": "2025-10-14",
+  "method": "in_person",
+  "participant": {
+    "pseudonym": "Vajk",
+    "segment": "Harmadéves programtervező informatikus"
+  },
+  "consent": true,
+  "responses": {
+    "q1": "Hogyan követed most az edzéseidet vagy az egészségedet?",
+    "a1": "A telefonom segítségével, külön alkalmazások segítségével követem őket.",
+    "q2": "Milyen appokat próbáltál eddig?",
+    "a2": "Yazio, Fitbit, MyFitnessPal illetve az Apple saját egészség követő alkalmazása, mind másra jó.",
+    "q3": "Mi motiválna, hogy hosszabb távon használd ezeket?",
+    "a3": "Ha mindent egy helyen tudnék követni.",
+    "q4": "Van valami, amit hiányoltál a korábbi appokból?",
+    "a4": "Amit említettem, az, hogy minden külön van nagyon sokat számít nekem és óriási negatívum.",
+    "q5": "Mit jelentene számodra, ha ismerősökkel tudnál versenyezni vagy közös kihívásokat csinálni?",
+    "a5": "Remek motiváció volna ha ilyen funkciókkal ellátott alkalmazásban követhetném az egészségem."
+  },
+  "insights": [
+    "A felhasználók gyakran használnak több különböző appot, de ezek között nincs összekapcsolás.",
+    "A motiváció hiánya és a túlkomplikált felületek miatt sokan pár nap után abbahagyják a fitneszappok használatát."
+  ],
+  "pain_points": [
+    "Túl sok különálló app.",
+    "Személyre szabott kihívások, tanácsadás hiánya." 
+  ],
+  "quotes": [
+    "\"Jó lenne, ha egy appban látnék mindent, nem kéne ugrálni a Fitbit és a MyFitnessPal között.\""
+  ]
+}

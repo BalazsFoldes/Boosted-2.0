@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boosted - MVP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div id="login-screen" class="min-h-screen flex items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+            <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">Boosted</h1>
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                <input type="email" id="email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="flora@example.com">
+            </div>
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Jelszó</label>
+                <input type="password" id="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="******">
+            </div>
+            <button onclick="handleLogin()" class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300">
+                Bejelentkezés
+            </button>
+        </div>
+    </div>
+
+    <div id="dashboard-screen" class="hidden min-h-screen">
+        <nav class="bg-white shadow mb-8">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <span class="text-xl font-bold text-primary">Boosted</span>
+                    </div>
+                    <div class="flex items-center">
+                        <button onclick="handleLogout()" class="text-gray-500 hover:text-gray-700">Kijelentkezés</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <dt class="text-sm font-medium text-gray-500 truncate">Mai Hidratáció</dt>
+                        <dd class="mt-1 text-3xl font-semibold text-gray-900" id="display-hydration">0 ml</dd>
+                    </div>
+                </div>
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <dt class="text-sm font-medium text-gray-500 truncate">Aktuális Hangulat</dt>
+                        <dd class="mt-1 text-3xl font-semibold text-gray-900" id="display-mood">-</dd>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white shadow rounded-lg p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Új bejegyzés rögzítése</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Vízfogyasztás (ml)</label>
+                        <div class="mt-1 flex rounded-md shadow-sm">
+                            <input type="number" id="input-hydration" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md border-gray-300 focus:ring-primary focus:border-primary sm:text-sm border" placeholder="pl. 250">
+                            <button onclick="logHydration()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-r-md text-white bg-blue-600 hover:bg-blue-700">
+                                Mentés
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Hangulat (1-5)</label>
+                        <div class="mt-1 flex rounded-md shadow-sm">
+                            <input type="number" id="input-mood" min="1" max="5" class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md border-gray-300 focus:ring-secondary focus:border-secondary sm:text-sm border" placeholder="1-5">
+                            <button onclick="logMood()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-r-md text-white bg-green-600 hover:bg-green-700">
+                                Mentés
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API hívások kezelése
+        async function handleLogin() {
+            // Itt most csak szimuláljuk, hogy kapunk tokent
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email, password})
+            });
+
+            if (response.ok) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('dashboard-screen').classList.remove('hidden');
+                refreshDashboard(); // Adatok betöltése
+            } else {
+                alert('Hibás belépés!');
+            }
+        }
+
+        async function logHydration() {
+            const amount = document.getElementById('input-hydration').value;
+            if (!amount) return;
+
+            const response = await fetch('/api/daily-log', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({hydration_ml: parseInt(amount)})
+            });
+
+            if (response.ok) {
+                document.getElementById('input-hydration').value = '';
+                refreshDashboard();
+            } else {
+                alert('Hiba a mentés során');
+            }
+        }
+
+        async function logMood() {
+            const mood = document.getElementById('input-mood').value;
+            if (!mood) return;
+
+            const response = await fetch('/api/daily-log', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({mood: parseInt(mood)})
+            });
+
+            if (response.ok) {
+                document.getElementById('input-mood').value = '';
+                refreshDashboard();
+            } else {
+                alert('Hiba: a hangulatnak 1 és 5 között kell lennie!');
+            }
+        }
+
+        async function refreshDashboard() {
+            const response = await fetch('/api/dashboard/today');
+            const data = await response.json();
+            
+            document.getElementById('display-hydration').innerText = data.hydration_ml + ' ml';
+            document.getElementById('display-mood').innerText = data.mood ? data.mood + '/5' : '-';
+        }
+
+        function handleLogout() {
+            location.reload();
+        }
+    </script>
+</body>
+</html>

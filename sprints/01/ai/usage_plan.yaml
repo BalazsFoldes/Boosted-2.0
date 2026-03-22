@@ -1,0 +1,27 @@
+goals:
+  - "Felhasználói igények és motivációk feltérképezése egészség- és fitneszappok esetén."
+  - "UX/feature ötletek generálása és priorizálása az app első verziójához."
+  - "Versenytárs elemzés (MyFitnessPal, Fitbit, Yazio, WaterMinder stb.) funkcionális összevetése."
+  - "Gamifikációs és motivációs elemek AI-alapú finomhangolása."
+  - "Tartalom- és szövegírás támogatása (pl. kihívásleírások, app onboarding szövegek)."
+
+operational_cadence:
+  check_in: "Hetente legalább két alkalommal használom az MI-eszközöket koncepció- és UX-fejlesztésre."
+  review_partner: "A konzulenssel minden sprint végén átbeszélem az MI által generált dokumentumokat és javaslatokat."
+
+guardrails:
+  - "Személyes adatokat (pl. egészségügyi, felhasználói adatok) nem továbbítok MI-eszköz felé."
+  - "Minden generált anyagot manuálisan ellenőrzök publikálás vagy bemutatás előtt."
+  - "Csak nyíltan elérhető, publikus adatokat használok piaci és versenytárs-elemzéshez."
+
+tools:
+  - name: "ChatGPT"
+    use_cases:
+      - "Feature ötletek, felhasználói történetek és PRD szövegek írása"
+      - "Piackutatási és UX-elemzési vázlatok készítése"
+      - "Motivációs szövegek, kihívásleírások és gamifikációs koncepciók generálása"
+      - "AI-architektúra és technológiai döntések dokumentálása"
+  - name: "Canva / Figma (AI pluginokkal)"
+    use_cases:
+      - "App UI mockupok, ikonok és illusztrációk generálása"
+      - "Moodboard készítés az app arculatához"

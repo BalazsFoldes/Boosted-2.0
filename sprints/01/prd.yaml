@@ -1,0 +1,65 @@
+meta:
+  version: "0.1"
+  last_updated: "2025-10-13"
+problem:
+  statement: "A fiatal, egészségtudatos felhasználók számára az egészség- és fitneszadatok nyomon követése, kezelése és optimalizálása több különböző alkalmazással időigényes és fragmentált folyamat, ami csökkenti a motivációt és a fejlődést."
+target_audience:
+  personas:
+    - name: "Vajk, a tech-savvy fiatal felnőtt"
+      segment: "Harmadéves programtervező informatikus, rendszeres élsportoló, az egészséges életmódjához szüksége van egy alkalmazásra amiben mindent nyomon tud követni."
+      needs:
+        - "Személyre szabott edzés- és étrendajánlások"
+        - "Alvás és hidratáció követése"
+        - "Hangulat naplózása, motiváció gyűjtése"
+        - "Motiváció fenntartása gamifikációval és közösségi kihívásokkal"
+    - name: "Flóra, egészségtudatos egyetemista"
+      segment: "22 éves, otthon és edzőteremben is sportol, szeretne fejlődni mentális és fizikai egészség terén."
+      needs:
+        - "Egyszerű, átlátható naplózás és trendkövetés"
+        - "AI-alapú tippek az egészséges életmódhoz"
+        - "Közösségi visszajelzés és kihívások"
+value_proposition:
+  concise: "A Boosted egy integrált egészség- és fitnesz app, ami összefogja az edzést, étrendet, alvást, hidratációt és mentális egészséget, személyre szabott AI-ajánlásokkal és gamifikált közösségi élménnyel, így a felhasználók motiváltabban és hatékonyabban tudják követni fejlődésüket."
+  differentiators:
+    - "Teljesen integrált platform: edzés, étrend, alvás, hidratáció és mentális egészség egy helyen"
+    - "AI-alapú személyre szabott javaslatok"
+    - "Gamifikált kihívások, virtuális pontok és achievementek"
+    - "Okosórák és fitnesz-karkötők integrációja"
+    - "Közösségi funkciók barátokkal és csoportokkal"
+
+scope:
+  in:
+    - "Felhasználói regisztráció és bejelentkezés"
+    - "Napi hidratáció (ml) manuális rögzítése"
+    - "Napi hangulat (1-5 skálán) manuális rögzítése"
+    - "Dashboard az adott nap hidratáció + hangulat adatainak megjelenítésére"
+  out:
+    - "Edzésprogram generátor (Future)"
+    - "Gamifikációs pont- és achievement rendszer (Future)"
+    - "Barátokkal/csoportokkal való versenyzés és kihívások (Future)"
+    - "Étrend- és fitnesz kalkulátor (Post-MVP)"
+    - "Mentális egészség részletes naplózás (Post-MVP)"
+    - "Hidratációs emlékeztető push notifikáció (Post-MVP)"
+    - "Személyre szabott vitamin- és táplálékkiegészítő ajánló (Future)"
+    - "Alvásnapló és optimalizáló riasztó (Future)"
+    - "Offline desktop alkalmazás (Future)"
+
+
+success_metrics:
+  - "Mindkét adat (hangulat + hidratáció) mentése és olvasása E2E acceptance tesztben CI alatt zöld (pass)."
+  - "A dashboard az utolsó bevitt adatot helyesen jeleníti meg legalább 3 böngészőben (Chrome, Firefox, Safari)."
+  - "Minimum 1 manuális usability teszt dokumentálása (Notion link) a sprint végére."
+risks:
+  - "Adatvédelmi és GDPR követelmények betartása a személyes egészségadatok miatt"
+  - "A felhasználók különböző szintű tech-ismerete miatt az app használata nehézséget okozhat"
+  - "Motiváció fenntartása hosszú távon"
+first_tech_decision_ref: "sprints/01/architecture/adr/0001-first-tech-choice.md"
+research_summary:
+  insights:
+    - "Sok felhasználó több különböző alkalmazást használ különböző célokra (edzés, étrend, alvás, hidratáció), ami fragmentált élményt ad"
+    - "A gamifikált elemek növelik a motivációt és aktivitást"
+    - "Az AI-alapú személyre szabott tippek növelik a felhasználói elköteleződést"
+  pain_points:
+    - "Időigényes az adatok manuális követése és összegzése"
+    - "Nehéz motivációt találni és fenntartani hosszú távon"
+    - "Közösségi támogatás hiánya csökkenti a rendszerességet"

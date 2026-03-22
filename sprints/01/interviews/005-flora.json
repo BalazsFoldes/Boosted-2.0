@@ -1,0 +1,33 @@
+{
+  "id": "INT-005",
+  "date": "2025-10-15",
+  "method": "online",
+  "participant": {
+    "pseudonym": "Flóra",
+    "segment": "22 éves egészségtudatos egyetemista, rendszeres sportoló"
+  },
+  "consent": true,
+  "responses": {
+    "q1": "Hogyan követed most az edzéseidet vagy az egészségedet?",
+    "a1": "Papírra írom az edzéseket, az étkezéseket pedig egy appban, de gyakran elfelejtem beírni.",
+    "q2": "Milyen appokat próbáltál eddig?",
+    "a2": "MyFitnessPal és Headspace, de egyik sem segít igazán abban, hogy rendszeresen tartsam magam a céljaimhoz.",
+    "q3": "Mi motiválna, hogy hosszabb távon használd ezeket?",
+    "a3": "Ha látnám a haladásomat és kapnék visszajelzést, hogy mit csinálok jól.",
+    "q4": "Van valami, amit hiányoltál a korábbi appokból?",
+    "a4": "Nem tudnak érzelmi oldalról motiválni. Csak számokat mutatnak, de nem adnak pozitív visszajelzést.",
+    "q5": "Mit jelentene számodra, ha ismerősökkel tudnál versenyezni vagy közös kihívásokat csinálni?",
+    "a5": "Nagyon jó lenne, ha a barátaimmal közösen tudnánk heti kihívásokat csinálni, például ki tud többet aludni vagy hidratáltabb maradni."
+  },
+  "insights": [
+    "A vizuális visszajelzés és az érzelmi motiváció fontos a kitartáshoz.",
+    "A felhasználó értékelné az egyszerű, emberközeli kommunikációt az appban."
+  ],
+  "pain_points": [
+    "Nem elég motiválóak a jelenlegi appok.",
+    "A manuális adatbevitel fárasztó és könnyen elmarad."
+  ],
+  "quotes": [
+    "\"A motiváció sokkal nagyobb lenne, ha a barátaim is benne lennének a kihívásban.\""
+  ]
+}

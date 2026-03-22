@@ -1,0 +1,8 @@
+student:
+  name: "Földes Balázs"
+  id: "NYCLM8"
+project:
+  title: "Boosted – személyre szabott egészség- és fitneszmenedzsment webalkalmazás"
+  product_ml_features: true
+ai:
+  log_min_entries_per_sprint: 3

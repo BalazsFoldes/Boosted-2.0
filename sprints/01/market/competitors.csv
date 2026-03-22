@@ -1,0 +1,4 @@
+name,url,pricing_model,key_strengths,key_weaknesses,differentiators,target_audience_fit,pricing_model_details
+MyFitnessPal,https://www.myfitnesspal.com,freemium,"Nagy adatbázis ételekhez;Kalóriaszámláló és makró követés;Integráció okosórákkal","Reklámok az ingyenes verzióban;Túlzsúfolt felhasználói felület","Széles ételadatbázis, okosóra integráció","Közepes","Freemium alap; prémium előfizetés reklámmentességgel és extra funkciókkal"
+Fitbod,https://www.fitbod.me,subscription,"AI-alapú edzésterv generálás;Progresszív terhelés követése","Korlátozott közösségi funkciók;Csak angol nyelven elérhető","Személyre szabott edzéstervek AI segítségével","Közepes","Előfizetés havonta vagy évente; ingyenes próba"
+Yazio,https://www.yazio.com,freemium,"Étrend- és kalóriakövetés;Receptek;Makrók automatikus számítása","Közösségi funkciók hiánya;A prémium funkciók drágák","Receptek és étrendtervezés integráltan","Magas","Freemium alap; prémium előfizetés extra funkciókkal"

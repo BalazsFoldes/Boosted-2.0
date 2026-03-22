@@ -1,0 +1,33 @@
+{
+  "id": "INT-002",
+  "date": "2025-10-13",
+  "method": "in_person",
+  "participant": {
+    "pseudonym": "Ákos",
+    "segment": "21 éves programtervező informatikus hallgató, aki munka mellett ír szakdolgozatot"
+  },
+  "consent": true,
+  "responses": {
+    "q1": "Hogyan követed most az edzéseidet vagy az egészségedet?",
+    "a1": "Semmi rendszeresen. Időnként futok, de nincs nyilvántartásom róla.",
+    "q2": "Milyen appokat próbáltál eddig?",
+    "a2": "Egyszer letöltöttem a Strava-t, de túl bonyolult volt, ezért abbahagytam.",
+    "q3": "Mi motiválna, hogy hosszabb távon használd ezeket?",
+    "a3": "Ha egyszerű lenne, és lenne napi emlékeztető vagy célkitűzés.",
+    "q4": "Van valami, amit hiányoltál a korábbi appokból?",
+    "a4": "A konzisztencia. Nem figyelmeztettek időben, így elfelejtettem használni.",
+    "q5": "Mit jelentene számodra, ha ismerősökkel tudnál versenyezni vagy közös kihívásokat csinálni?",
+    "a5": "Ez sokat segítene, mert ha másokat is látok aktívnak, az engem is húzna előre."
+  },
+  "insights": [
+    "Az egyszerűség és az emlékeztető funkció kulcs a megtartásban.",
+    "A közösségi nyomás pozitívan hat a motivációra."
+  ],
+  "pain_points": [
+    "Bonyolult felhasználói felületek.",
+    "Hiányzó célkitűzések."
+  ],
+  "quotes": [
+    "\"A barátaim teljesítménye inspiráló és motiváló, hogy én is tegyek valamit.\""
+  ]
+}
