@@ -1,27 +1,24 @@
 goals:
-  - "Felhasználói igények és motivációk feltérképezése egészség- és fitneszappok esetén."
-  - "UX/feature ötletek generálása és priorizálása az app első verziójához."
-  - "Versenytárs elemzés (MyFitnessPal, Fitbit, Yazio, WaterMinder stb.) funkcionális összevetése."
-  - "Gamifikációs és motivációs elemek AI-alapú finomhangolása."
-  - "Tartalom- és szövegírás támogatása (pl. kihívásleírások, app onboarding szövegek)."
+  - "Az edző-kliens kapcsolat adatmodelljének (ER-diagram) megtervezése és optimalizálása."
+  - "Az MI-alapú kiégés-megelőző és teljesítmény-elemző riportok prompt engineering feladatainak elvégzése."
+  - "Versenytárs elemzés a piacon lévő coaching appok adatkezelési és automatizációs hiányosságairól."
+  - "Az adatfolyamok (Data Pipeline) tervezése a napi bejelentkezésektől az összesített riportokig."
 
 operational_cadence:
-  check_in: "Hetente legalább két alkalommal használom az MI-eszközöket koncepció- és UX-fejlesztésre."
-  review_partner: "A konzulenssel minden sprint végén átbeszélem az MI által generált dokumentumokat és javaslatokat."
+  check_in: "Hetente többször használom az MI-t kódgenerálásra, hibakeresésre és architektúra-tervezésre."
+  review_partner: "A konzulensemmel és a szakmai mentorokkal (MI) rendszeresen validálom a technikai megoldásokat."
 
 guardrails:
-  - "Személyes adatokat (pl. egészségügyi, felhasználói adatok) nem továbbítok MI-eszköz felé."
-  - "Minden generált anyagot manuálisan ellenőrzök publikálás vagy bemutatás előtt."
-  - "Csak nyíltan elérhető, publikus adatokat használok piaci és versenytárs-elemzéshez."
+  - "Személyes egészségügyi adatokat soha nem küldök az MI-nek, csak anonim tesztadatokat."
+  - "Minden generált kódot manuálisan tesztelek és biztonsági szempontból felülvizsgálok."
+  - "A projekt technikai döntéseit dokumentálom, hogy az MI segítsége mellett is megmaradjon a saját mérnöki kontrollom."
 
 tools:
-  - name: "ChatGPT"
+  - name: "Gemini / ChatGPT"
     use_cases:
-      - "Feature ötletek, felhasználói történetek és PRD szövegek írása"
-      - "Piackutatási és UX-elemzési vázlatok készítése"
-      - "Motivációs szövegek, kihívásleírások és gamifikációs koncepciók generálása"
-      - "AI-architektúra és technológiai döntések dokumentálása"
-  - name: "Canva / Figma (AI pluginokkal)"
+      - "FastAPI backend architektúra és adatbázis modellek tervezése"
+      - "Tailwind 4 CSS és Next.js frontend komponensek generálása és debuggolása"
+      - "Data Engineering feladatok: Python alapú adatfeldolgozó scriptek írása"
+  - name: "Figma (AI tools)"
     use_cases:
-      - "App UI mockupok, ikonok és illusztrációk generálása"
-      - "Moodboard készítés az app arculatához"
+      - "UI/UX prototípusok készítése az edzői dashboardhoz"

@@ -1,30 +1,27 @@
 # 0001: Kezdeti technológiai stack kiválasztása
 
-- Dátum: 2025-10-15
+- Dátum: 2026-03-23
 - Státusz: Elfogadva
 
 ## Kontextus
-A Boosted egy AI-alapú egészség- és fitnesz webalkalmazás, amely integrálja a felhasználók edzés-, étrend-, alvás-, hidratáció- és hangulatadatait egyetlen felületen.  
-A cél az, hogy a felhasználók motiváltak maradjanak és könnyen nyomon követhessék a fejlődésüket.  
+A Boosted 2.0 egy AI-alapú személyi edző és kliensmenedzsment webalkalmazás. A projekt célja egy olyan adatközpontú platform létrehozása, ahol a kliensek egyszerűen naplózhatják biometrikus adataikat (alvás, stressz, víz, hangulat), az edzők pedig egy átfogó dashboardon követhetik ezeket. A rendszer legfőbb értéke a Data Engineering és az AI-integráció: az adatokból automatizált trendelemzések és riportok készülnek.
 
 ## Döntés
-A frontendhez **Next.js (React)** keretrendszert választunk **TypeScript** illetve **TailwindCSS** támogatással, mivel:
-- modern, SEO-barát webalkalmazásokat tesz lehetővé,
-- beépített API-rétege révén egyszerű backend-integrációt kínál,
-- a csapatnak már van React- és TypeScript-tapasztalata.
+A frontendhez **Next.js (React)** keretrendszert választunk **TypeScript** és a legújabb **Tailwind CSS v4** támogatással, mivel:
+- Modern, gyors és reszponzív UI-t biztosít mind az edzői dashboard, mind a kliens mobilnézete számára.
+- A beépített útválasztás (App Router) megkönnyíti a szerepkörök (Coach/Client) szerinti oldal-elkülönítést.
+- A csapatnak (nekem) már van React- és Tailwind-tapasztalata.
 
-A backend **FastAPI (Python)** lesz **PostgreSQL** adatbázissal, mert:
-- erős admin felületet biztosít (user management, adatkezelés),
-- könnyen integrálható AI-modulokkal (pl. OpenAI GPT, scikit-learn),
-- későbbi fizetési integrációt és autentikációt könnyen kezel.
+A backend **FastAPI (Python)** lesz **PostgreSQL** adatbázissal (fejlesztés alatt SQLite), mert:
+- **Data Engineering fókusz:** A Python natív ökoszisztémája (Pandas, NumPy) és a FastAPI aszinkron sebessége tökéletes az adatfeldolgozáshoz.
+- Egyszerű AI integráció: Az OpenAI/Gemini API-k hívása Pythonból a legstabilabb.
+- A Pydantic modellek (FastAPI alapja) automatikus adatvalidációt biztosítanak a bejövő kliensnaplókra.
 
 ## Megfontolt alternatívák
-- **FastAPI + PostgreSQL**: gyors, aszinkron API, de Django admin funkciói és ORM előnyei miatt nem elsődleges választás.  
-- **Node.js (Express) + PostgreSQL**: Python AI integráció szempontjából kevésbé optimális.  
-- **Vue 3 + Supabase**: gyors MVP, de a csapat React-ismerete miatt nem indokolt.
+- **Django + PostgreSQL:** Bár a beépített admin felület és ORM kényelmes, a mi API-first, mikroszolgáltatás jellegű, adatelemzésre fókuszáló architektúránkhoz túlságosan robusztus és lassabb lett volna.
+- **Node.js (Express) + PostgreSQL:** Gyors lett volna a frontend-backend nyelvi egyezés (Full-Stack JS) miatt, de a Python AI és adatelemző könyvtárainak hiánya miatt elvetettük.
 
 ## Következmények
-- A Next.js + TypeScript + TailwindCSS stack gyors frontend-fejlesztést és típusbiztonságot biztosít.  
-- A Django backend lehetővé teszi az AI-alapú szolgáltatások integrációját, adatbiztonságot és adminisztrációt.  
-- Kockázat: két nyelvet kell karbantartani (TypeScript + Python), és a JavaScript/Tailwind ökoszisztéma sok csomagot hoz, ezért rendszeres dependency audit szükséges.
-- AI-funkciók integrációja (pl. OpenAI GPT chatbot) biztosítja a személyre szabott tippeket és ügyfélszolgálati támogatást.
+- **Monorepo struktúra:** Két különálló környezetet (NPM a frontendnek, Pip/Venv a backendnek) kell karbantartani egy repón belül.
+- **Adatbiztonság és skálázhatóság:** A FastAPI és a PostgreSQL párosa garantálja, hogy a komplex SQL lekérdezések (pl. "mutasd az összes kliensem heti stressz-átlagát") villámgyorsak maradjanak.
+- **Fejlesztési fókusz:** Az autentikációt és az adatbázis-sémát (SQLAlchemy) az alapoktól precízen fel kell építeni, ami kiváló mérnöki (Data Engineer) gyakorlat.
