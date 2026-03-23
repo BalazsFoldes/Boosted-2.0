@@ -16,5 +16,5 @@ Ez a projekt a szakdolgozatom központi eleme, amely egy modern, adatközpontú 
 
 ## 📂 Felépítés
 - `/frontend`: A Next.js webalkalmazás
-- `/backend`: A FastAPI szerver és az adatbázis-logika
+- `/app`: A FastAPI szerver és az adatbázis-logika
 - `/docs`: Dokumentáció és tervek
