@@ -8,10 +8,15 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   
+  // ÚJ: Állapot a szakmához a regisztrációnál
+  const [specialization, setSpecialization] = useState("Személyi Edző");
+  
   const [loggedInUser, setLoggedInUser] = useState(""); 
   const [coachId, setCoachId] = useState(null); 
   const [userRole, setUserRole] = useState(""); 
   const [userId, setUserId] = useState(null); 
+  // ÚJ: A belépett felhasználó szakmája (Profil megjelenítéshez)
+  const [userSpecialization, setUserSpecialization] = useState("");
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [clientEmail, setClientEmail] = useState("");
@@ -45,7 +50,8 @@ export default function Home() {
       const res = await fetch("http://localhost:8000/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, full_name: fullName }),
+        // ÚJ: Elküldjük a szakmát is!
+        body: JSON.stringify({ email, password, full_name: fullName, specialization }),
       });
       if (res.ok) {
         alert("Sikeres regisztráció! Kérjük, jelentkezz be.");
@@ -60,7 +66,7 @@ export default function Home() {
     }
   };
 
-const handleLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     try {
       const res = await fetch("http://localhost:8000/api/login", {
@@ -73,9 +79,7 @@ const handleLogin = async (e) => {
         setLoggedInUser(data.full_name);
         setUserRole(data.role); 
         setUserId(data.user_id); 
-        
-        // 🚨 JAVÍTÁS ITT: Ha edző lép be, a saját ID-ját (user_id) használjuk.
-        // Ha kliens lép be, akkor az adatbázisban lévő edzője ID-ját (coach_id).
+        setUserSpecialization(data.specialization); // ÚJ: Eltároljuk a szakmát
         setCoachId(data.role === "COACH" ? data.user_id : data.coach_id); 
         
         setCurrentTab("overview"); 
@@ -88,6 +92,7 @@ const handleLogin = async (e) => {
       alert("Szerver hiba.");
     }
   };
+
   const handleGenerateInvite = async (sendEmail = false) => {
     try {
       const payload = { coach_id: coachId };
@@ -119,6 +124,7 @@ const handleLogin = async (e) => {
     setCoachId(null);
     setUserRole(""); 
     setUserId(null); 
+    setUserSpecialization("");
     setClients([]); 
     setEmail("");
     setPassword("");
@@ -151,25 +157,25 @@ const handleLogin = async (e) => {
             </span>
           </h1>
           <p className="text-xl text-gray-600 mb-16 max-w-2xl leading-relaxed">
-            A Boosted egy adatközpontú platform, amely összeköti a személyi edzőket és klienseiket. Kövesd az alvást, a stresszt és az energiát egyetlen, AI által támogatott felületen.
+            A Boosted egy adatközpontú platform, amely összeköti a személyi edzőket, terapeutákat és klienseiket. Kövesd az alvást, a stresszt és az energiát egyetlen felületen.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl text-left">
             <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-100 flex flex-col">
               <div className="text-4xl mb-4">🏃‍♂️</div>
               <h2 className="text-2xl font-bold text-gray-900 mb-3">Klienseknek</h2>
-              <p className="text-gray-600 mb-6 flex-1">Naplózd egyszerűen a napi biometrikus adataidat, hogy az edződ személyre szabottabb és hatékonyabb edzéstervet tudjon neked készíteni.</p>
+              <p className="text-gray-600 mb-6 flex-1">Naplózd egyszerűen a napi biometrikus adataidat, hogy a szakértőd személyre szabottabb programot tudjon neked készíteni.</p>
               <div className="p-4 bg-orange-50 text-orange-800 rounded-lg text-sm border border-orange-100 font-medium">
-                ⚠️ Csatlakozni kizárólag az edződtől kapott személyes meghívó linkkel tudsz! Amennyiben már van fiókod, kattints a bejelentkezésre!
+                ⚠️ Csatlakozni kizárólag a szakértődtől kapott személyes meghívó linkkel tudsz!
               </div>
             </div>
 
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-8 rounded-2xl shadow-md border border-blue-100 flex flex-col">
               <div className="text-4xl mb-4">📊</div>
-              <h2 className="text-2xl font-bold text-blue-900 mb-3">Személyi Edzőknek</h2>
-              <p className="text-blue-800 mb-6 flex-1 opacity-90">Lásd át az összes kliensed állapotát egyetlen Dashboardon. Generálj AI riportokat és előzd meg a túledzést még mielőtt bekövetkezne.</p>
+              <h2 className="text-2xl font-bold text-blue-900 mb-3">Szakértőknek</h2>
+              <p className="text-blue-800 mb-6 flex-1 opacity-90">Lásd át az összes kliensed állapotát egyetlen Dashboardon. Előzd meg a túledzést és a kiégést még mielőtt bekövetkezne.</p>
               <button onClick={() => setView("register")} className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg hover:shadow-blue-200">
-                Regisztráció Edzőként
+                Regisztráció Szakértőként
               </button>
             </div>
           </div>
@@ -186,13 +192,31 @@ const handleLogin = async (e) => {
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
         <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border-t-4 border-blue-600">
           <h2 className="text-3xl font-extrabold mb-2 text-gray-900 text-center tracking-tight">
-            Edzői Fiók Létrehozása
+            Coach Fiók Létrehozása
           </h2>
           <form onSubmit={handleRegister} className="space-y-5 mt-8">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Teljes Név</label>
               <input type="text" required className={inputStyle} value={fullName} onChange={(e) => setFullName(e.target.value)} />
             </div>
+            
+            {/* ÚJ: Szakma kiválasztása (Legördülő) */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Szakma / Terület</label>
+              <select 
+                className={`${inputStyle} cursor-pointer`} 
+                value={specialization} 
+                onChange={(e) => setSpecialization(e.target.value)}
+              >
+                <option value="Személyi Edző">Személyi Edző</option>
+                <option value="Fizioterapeuta / Gyógytornász">Fizioterapeuta / Gyógytornász</option>
+                <option value="Dietetikus / Táplálkozási Tanácsadó">Dietetikus / Táplálkozási Tanácsadó</option>
+                <option value="Sportpszichológus">Sportpszichológus</option>
+                <option value="Életmód Tanácsadó (Health Coach)">Életmód Tanácsadó (Health Coach)</option>
+                <option value="Egyéb Szakértő">Egyéb</option>
+              </select>
+            </div>
+
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Email cím</label>
               <input type="email" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -255,18 +279,8 @@ const handleLogin = async (e) => {
             </div>
             
             <nav className="hidden sm:flex space-x-2">
-              <button 
-                onClick={() => setCurrentTab("overview")}
-                className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 ${currentTab === "overview" ? `${themeBg} ${themeText}` : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"}`}
-              >
-                Áttekintés
-              </button>
-              <button 
-                onClick={() => setCurrentTab("profile")}
-                className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 ${currentTab === "profile" ? `${themeBg} ${themeText}` : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"}`}
-              >
-                Saját Profil
-              </button>
+              <button onClick={() => setCurrentTab("overview")} className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 ${currentTab === "overview" ? `${themeBg} ${themeText}` : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"}`}>Áttekintés</button>
+              <button onClick={() => setCurrentTab("profile")} className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 ${currentTab === "profile" ? `${themeBg} ${themeText}` : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"}`}>Saját Profil</button>
             </nav>
           </div>
 
@@ -286,7 +300,7 @@ const handleLogin = async (e) => {
         <main className="max-w-6xl mx-auto px-4 py-10">
           
           {/* ========================================== */}
-          {/* 1. ÁTTEKINTÉS TAB (OVERVIEW)                 */}
+          {/* 1. ÁTTEKINTÉS TAB                          */}
           {/* ========================================== */}
           {currentTab === "overview" && (
             <div className="animate-fade-in-up">
@@ -301,17 +315,13 @@ const handleLogin = async (e) => {
                 </div>
                 
                 {isCoach && (
-                  <button 
-                    onClick={() => setIsModalOpen(true)}
-                    className="flex items-center px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md w-full sm:w-auto justify-center"
-                  >
+                  <button onClick={() => setIsModalOpen(true)} className="flex items-center px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md w-full sm:w-auto justify-center">
                     <span className="text-xl mr-2">+</span> Új kliens meghívása
                   </button>
                 )}
               </div>
 
               {isCoach ? (
-                /* --- EDZŐI TARTALOM --- */
                 clients.length === 0 ? (
                   <div className="bg-white rounded-2xl shadow-sm border border-dashed border-gray-300 p-16 text-center">
                     <div className="text-5xl mb-4 opacity-50">📂</div>
@@ -344,21 +354,15 @@ const handleLogin = async (e) => {
                   </div>
                 )
               ) : (
-                /* --- KLIENS TARTALOM --- */
                 <div className="space-y-6">
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden relative">
                     <div className="h-2 w-full bg-linear-to-r from-orange-400 to-pink-500"></div>
                     <div className="p-8 md:p-10 flex flex-col md:flex-row items-center justify-between text-center md:text-left">
                       <div className="mb-6 md:mb-0">
                         <h3 className="text-2xl font-bold text-gray-900 mb-2">Ma még nem naplóztál! 📝</h3>
-                        <p className="text-gray-600 max-w-md">
-                          Az edződ várja az adataidat. Szánj rá 1 percet, és rögzítsd az alvásodat, stressz-szintedet és a vízfogyasztásodat!
-                        </p>
+                        <p className="text-gray-600 max-w-md">Az edződ várja az adataidat. Szánj rá 1 percet, és rögzítsd az alvásodat, stressz-szintedet és a vízfogyasztásodat!</p>
                       </div>
-                      <button 
-                        onClick={() => alert("Hamarosan ide kerül a csúszkás űrlap!")}
-                        className="px-8 py-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition shadow-lg shrink-0 w-full md:w-auto"
-                      >
+                      <button onClick={() => alert("Hamarosan ide kerül a csúszkás űrlap!")} className="px-8 py-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition shadow-lg shrink-0 w-full md:w-auto">
                         Napi Napló Hozzáadása
                       </button>
                     </div>
@@ -382,9 +386,7 @@ const handleLogin = async (e) => {
                             <p className="text-gray-500 text-sm">Alvás: {log.sleep} • Víz: 2.5 L</p>
                           </div>
                           <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                            <span className={`px-4 py-2 rounded-lg text-sm font-bold ${log.bg} ${log.color}`}>
-                              {log.mood}
-                            </span>
+                            <span className={`px-4 py-2 rounded-lg text-sm font-bold ${log.bg} ${log.color}`}>{log.mood}</span>
                             <span className="text-gray-400 font-bold hover:text-emerald-600 transition">Részletek →</span>
                           </div>
                         </li>
@@ -400,25 +402,26 @@ const handleLogin = async (e) => {
           )}
 
           {/* ========================================== */}
-          {/* 2. PROFIL TAB (JAVÍTOTT ELRENDEZÉS ÉS SZÍNEK)*/}
+          {/* 2. PROFIL TAB                                */}
           {/* ========================================== */}
           {currentTab === "profile" && (
             <div className="animate-fade-in-up max-w-4xl mx-auto">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6">
                 <div className={`h-32 bg-gradient-to-r ${themeGradient} w-full relative`}></div>
                 
-                {/* JAVÍTVA: items-start és megfelelő margók, hogy ne csússzon be a banner alá a szöveg */}
                 <div className="px-8 pb-8 flex flex-col sm:flex-row items-center sm:items-start relative -mt-16">
                   <div className="h-32 w-32 bg-white rounded-full p-1 shadow-lg shrink-0 relative z-10">
                     <div className="h-full w-full bg-gray-100 rounded-full flex items-center justify-center text-5xl font-extrabold text-gray-400">
                       {loggedInUser.charAt(0).toUpperCase()}
                     </div>
                   </div>
-                  {/* Szöveg blokk eltolása lefelé mobilon, asztalin pedig egyvonalba hozása */}
+                  
+                  {/* ÚJ: Dinamikusan kiírjuk az edző szakmáját a név alá! */}
                   <div className="mt-4 sm:mt-20 sm:ml-6 text-center sm:text-left flex-1">
                     <h2 className="text-3xl font-extrabold text-gray-900">{loggedInUser}</h2>
-                    <p className="text-gray-500 font-medium">{isCoach ? "Személyi Edző" : "Boosted Kliens"}</p>
+                    <p className="text-gray-500 font-medium">{isCoach ? (userSpecialization || "Személyi Edző") : "Boosted Kliens"}</p>
                   </div>
+                  
                   <div className="mt-6 sm:mt-20 sm:ml-auto">
                     <button className="px-6 py-2 bg-gray-100 text-gray-800 font-bold rounded-lg hover:bg-gray-200 transition text-sm">
                       Profil Szerkesztése
@@ -427,7 +430,6 @@ const handleLogin = async (e) => {
                 </div>
               </div>
 
-              {/* Információs Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-1 space-y-6">
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
@@ -460,13 +462,15 @@ const handleLogin = async (e) => {
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fiók Típusa</label>
+                        
+                        {/* ÚJ: Itt is megjelenik a pontos szakma a kártyán */}
                         <p className={`font-medium p-3 rounded-lg border ${isCoach ? "text-purple-700 bg-purple-50 border-purple-100" : "text-emerald-700 bg-emerald-50 border-emerald-100"}`}>
-                          {isCoach ? "⭐ Edzői Fiók" : "🌱 Kliens Fiók"}
+                          {isCoach ? `${userSpecialization || "Edzői Fiók"}` : "Kliens Fiók"}
                         </p>
                       </div>
                       {!isCoach && (
                         <div className="sm:col-span-2">
-                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kapcsolt Edző</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kapcsolt Szakértő</label>
                           <div className="flex items-center p-4 bg-gray-50 border border-gray-200 rounded-lg">
                             <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold mr-3">E</div>
                             <div>
@@ -489,12 +493,7 @@ const handleLogin = async (e) => {
         {isModalOpen && isCoach && (
            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
            <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md relative">
-             <button 
-               onClick={() => { setIsModalOpen(false); setGeneratedLink(""); }}
-               className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold"
-             >
-               ×
-             </button>
+             <button onClick={() => { setIsModalOpen(false); setGeneratedLink(""); }} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold">×</button>
              <h2 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">Kliens Meghívása</h2>
              <p className="text-sm text-gray-500 mb-6">A meghívó link biztonsági okokból 24 óráig érvényes.</p>
              <div className="mb-6">
