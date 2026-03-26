@@ -7,15 +7,12 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  
-  // ÚJ: Állapot a szakmához a regisztrációnál
   const [specialization, setSpecialization] = useState("Személyi Edző");
   
   const [loggedInUser, setLoggedInUser] = useState(""); 
   const [coachId, setCoachId] = useState(null); 
   const [userRole, setUserRole] = useState(""); 
   const [userId, setUserId] = useState(null); 
-  // ÚJ: A belépett felhasználó szakmája (Profil megjelenítéshez)
   const [userSpecialization, setUserSpecialization] = useState("");
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,6 +21,20 @@ export default function Home() {
 
   const [clients, setClients] = useState([]);
   const [currentTab, setCurrentTab] = useState("overview");
+
+  // ==========================================
+  // ÚJ ÁLLAPOTOK: KLIENS NAPI NAPLÓZÁS
+  // ==========================================
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [clientLogs, setClientLogs] = useState([]); 
+  const [hasLoggedToday, setHasLoggedToday] = useState(false); 
+  
+  const [sleepHours, setSleepHours] = useState(7); 
+  const [stressLevel, setStressLevel] = useState(5); 
+  // JAVÍTVA: Kezdeti érték 2.0, lépésközök lesznek rajta
+  const [waterLiters, setWaterLiters] = useState(2.0); 
+  const [mood, setMood] = useState("😊 Szuper"); 
+  const [logNotes, setLogNotes] = useState("");
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -39,10 +50,71 @@ export default function Home() {
       }
     };
 
-    if (view === "dashboard" && userRole === "COACH") {
-      fetchClients();
+    const fetchClientLogs = async () => {
+      if (!userId) return;
+      try {
+        const res = await fetch(`http://localhost:8000/api/client/${userId}/logs`);
+        if (res.ok) {
+          const logs = await res.json();
+          setClientLogs(logs);
+          
+          const today = new Date().toISOString().split("T")[0];
+          const loggedToday = logs.some(log => log.date === today);
+          setHasLoggedToday(loggedToday);
+        }
+      } catch (error) {
+        console.error("Hiba a naplók lekérésekor:", error);
+      }
+    };
+
+    if (view === "dashboard") {
+      if (userRole === "COACH") {
+        fetchClients();
+      } else if (userRole === "CLIENT") {
+        fetchClientLogs();
+      }
     }
-  }, [view, userRole, coachId]);
+  }, [view, userRole, coachId, userId]);
+
+  const handleSaveLog = async () => {
+    try {
+      const today = new Date().toISOString().split("T")[0]; 
+      
+      const payload = {
+        client_id: userId,
+        date: today,
+        sleep_hours: sleepHours,
+        stress_level: stressLevel,
+        water_liters: waterLiters, // Itt már a tizedestört megy el (pl. 2.5)
+        mood: mood,
+        notes: logNotes || "" 
+      };
+
+      const res = await fetch("http://localhost:8000/api/client/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setHasLoggedToday(true);
+        setIsLogModalOpen(false);
+        setClientLogs([{...payload, id: Date.now()}, ...clientLogs]);
+        
+        setSleepHours(7);
+        setStressLevel(5);
+        setWaterLiters(2.0);
+        setMood("😊 Szuper");
+        setLogNotes("");
+      } else {
+        const err = await res.json();
+        alert("Hiba: " + err.detail);
+      }
+    } catch (error) {
+      alert("Szerver hiba mentés közben.");
+    }
+  };
+
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -50,7 +122,6 @@ export default function Home() {
       const res = await fetch("http://localhost:8000/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // ÚJ: Elküldjük a szakmát is!
         body: JSON.stringify({ email, password, full_name: fullName, specialization }),
       });
       if (res.ok) {
@@ -79,7 +150,7 @@ export default function Home() {
         setLoggedInUser(data.full_name);
         setUserRole(data.role); 
         setUserId(data.user_id); 
-        setUserSpecialization(data.specialization); // ÚJ: Eltároljuk a szakmát
+        setUserSpecialization(data.specialization); 
         setCoachId(data.role === "COACH" ? data.user_id : data.coach_id); 
         
         setCurrentTab("overview"); 
@@ -126,6 +197,8 @@ export default function Home() {
     setUserId(null); 
     setUserSpecialization("");
     setClients([]); 
+    setClientLogs([]); 
+    setHasLoggedToday(false);
     setEmail("");
     setPassword("");
     setFullName("");
@@ -133,6 +206,32 @@ export default function Home() {
   };
 
   const inputStyle = "w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 font-sans font-medium tracking-wide transition-all";
+  
+  const moodOptions = [
+    { icon: "😢", label: "Rossz" },
+    { icon: "😐", label: "Közepes" },
+    { icon: "😊", label: "Jó" },
+    { icon: "🤩", label: "Szuper" }
+  ];
+
+  // ==========================================
+  // ÚJ: DÁTUM FORMÁZÓ FÜGGVÉNY (Ma, Tegnap...)
+  // ==========================================
+  const formatDateLabel = (dateString) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Éjféli időpont a pontos összehasonlításhoz
+
+    const logDate = new Date(dateString);
+    logDate.setHours(0, 0, 0, 0);
+
+    const diffTime = Math.abs(today - logDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+    if (diffDays === 0) return `Ma (${dateString})`;
+    if (diffDays === 1) return `Tegnap (${dateString})`;
+    if (diffDays === 2) return `Tegnapelőtt (${dateString})`;
+    return dateString; // Ha régebbi, csak a dátumot írja ki
+  };
 
   // ==========================================
   // LANDING NÉZET
@@ -166,7 +265,7 @@ export default function Home() {
               <h2 className="text-2xl font-bold text-gray-900 mb-3">Klienseknek</h2>
               <p className="text-gray-600 mb-6 flex-1">Naplózd egyszerűen a napi biometrikus adataidat, hogy a szakértőd személyre szabottabb programot tudjon neked készíteni.</p>
               <div className="p-4 bg-orange-50 text-orange-800 rounded-lg text-sm border border-orange-100 font-medium">
-                ⚠️ Csatlakozni kizárólag a szakértődtől kapott személyes meghívó linkkel tudsz!
+                ⚠️ Csatlakozni kizárólag a szakértődtől kapott személyes meghívó linkkel tudsz! Amennyiben már van fiókod, kattints a bejelentkezésre!
               </div>
             </div>
 
@@ -192,7 +291,7 @@ export default function Home() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
         <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border-t-4 border-blue-600">
           <h2 className="text-3xl font-extrabold mb-2 text-gray-900 text-center tracking-tight">
-            Coach Fiók Létrehozása
+            Szakértői Fiók Létrehozása
           </h2>
           <form onSubmit={handleRegister} className="space-y-5 mt-8">
             <div>
@@ -200,14 +299,9 @@ export default function Home() {
               <input type="text" required className={inputStyle} value={fullName} onChange={(e) => setFullName(e.target.value)} />
             </div>
             
-            {/* ÚJ: Szakma kiválasztása (Legördülő) */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Szakma / Terület</label>
-              <select 
-                className={`${inputStyle} cursor-pointer`} 
-                value={specialization} 
-                onChange={(e) => setSpecialization(e.target.value)}
-              >
+              <select className={`${inputStyle} cursor-pointer`} value={specialization} onChange={(e) => setSpecialization(e.target.value)}>
                 <option value="Személyi Edző">Személyi Edző</option>
                 <option value="Fizioterapeuta / Gyógytornász">Fizioterapeuta / Gyógytornász</option>
                 <option value="Dietetikus / Táplálkozási Tanácsadó">Dietetikus / Táplálkozási Tanácsadó</option>
@@ -265,7 +359,6 @@ export default function Home() {
   // ==========================================
   if (view === "dashboard") {
     const isCoach = userRole === "COACH";
-    
     const themeGradient = isCoach ? "from-blue-600 to-purple-600" : "from-emerald-500 to-teal-400";
     const themeText = isCoach ? "text-blue-700" : "text-emerald-700";
     const themeBg = isCoach ? "bg-blue-50" : "bg-emerald-50";
@@ -277,19 +370,16 @@ export default function Home() {
             <div className={`text-2xl font-extrabold text-transparent bg-clip-text bg-linear-to-r ${themeGradient} tracking-tight mr-8`}>
               Boosted {isCoach ? "Coach" : "Client"}
             </div>
-            
             <nav className="hidden sm:flex space-x-2">
               <button onClick={() => setCurrentTab("overview")} className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 ${currentTab === "overview" ? `${themeBg} ${themeText}` : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"}`}>Áttekintés</button>
               <button onClick={() => setCurrentTab("profile")} className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 ${currentTab === "profile" ? `${themeBg} ${themeText}` : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"}`}>Saját Profil</button>
             </nav>
           </div>
-
           <div className="flex items-center space-x-4 w-full sm:w-auto justify-between sm:justify-end">
             <nav className="sm:hidden flex space-x-2 flex-1 mr-4">
               <button onClick={() => setCurrentTab("overview")} className={`flex-1 py-2 text-xs font-bold rounded-full transition-all ${currentTab === "overview" ? `${themeBg} ${themeText}` : "text-gray-500 hover:bg-gray-100"}`}>Áttekintés</button>
               <button onClick={() => setCurrentTab("profile")} className={`flex-1 py-2 text-xs font-bold rounded-full transition-all ${currentTab === "profile" ? `${themeBg} ${themeText}` : "text-gray-500 hover:bg-gray-100"}`}>Profil</button>
             </nav>
-
             <span className="text-sm text-gray-600 font-medium hidden md:inline">
               {loggedInUser} <span className="text-gray-400">({isCoach ? "Edző" : "Kliens"})</span>
             </span>
@@ -298,7 +388,6 @@ export default function Home() {
         </header>
 
         <main className="max-w-6xl mx-auto px-4 py-10">
-          
           {/* ========================================== */}
           {/* 1. ÁTTEKINTÉS TAB                          */}
           {/* ========================================== */}
@@ -308,9 +397,7 @@ export default function Home() {
                 <div>
                   <h1 className="text-3xl font-extrabold text-gray-900">Szia, {loggedInUser}! 👋</h1>
                   <p className="text-gray-500 mt-2">
-                    {isCoach 
-                      ? "Itt találod majd a klienseid adatait és az elemzéseket." 
-                      : "Itt rögzítheted a napi adataidat az edződ számára."}
+                    {isCoach ? "Itt találod majd a klienseid adatait és az elemzéseket." : "Itt rögzítheted a napi adataidat a szakértőd számára."}
                   </p>
                 </div>
                 
@@ -322,6 +409,7 @@ export default function Home() {
               </div>
 
               {isCoach ? (
+                /* --- EDZŐI TARTALOM --- */
                 clients.length === 0 ? (
                   <div className="bg-white rounded-2xl shadow-sm border border-dashed border-gray-300 p-16 text-center">
                     <div className="text-5xl mb-4 opacity-50">📂</div>
@@ -354,47 +442,75 @@ export default function Home() {
                   </div>
                 )
               ) : (
+                /* --- KLIENS TARTALOM --- */
                 <div className="space-y-6">
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden relative">
-                    <div className="h-2 w-full bg-linear-to-r from-orange-400 to-pink-500"></div>
+                  
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden relative transition-all duration-500">
+                    <div className={`h-2 w-full ${hasLoggedToday ? "bg-gradient-to-r from-emerald-400 to-teal-500" : "bg-gradient-to-r from-orange-400 to-pink-500"}`}></div>
                     <div className="p-8 md:p-10 flex flex-col md:flex-row items-center justify-between text-center md:text-left">
                       <div className="mb-6 md:mb-0">
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2">Ma még nem naplóztál! 📝</h3>
-                        <p className="text-gray-600 max-w-md">Az edződ várja az adataidat. Szánj rá 1 percet, és rögzítsd az alvásodat, stressz-szintedet és a vízfogyasztásodat!</p>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                          {hasLoggedToday ? "Szuper, ma már naplóztál!" : "Ma még nem naplóztál! 📝"}
+                        </h3>
+                        <p className="text-gray-600 max-w-md">
+                          {hasLoggedToday 
+                            ? "Mára végeztél is! Az adataidat sikeresen továbbítottuk a szakértődnek. Pihenj, és térj vissza holnap!" 
+                            : "Az edződ várja az adataidat. Szánj rá 1 percet, és rögzítsd az alvásodat, stressz-szintedet és a vízfogyasztásodat!"}
+                        </p>
                       </div>
-                      <button onClick={() => alert("Hamarosan ide kerül a csúszkás űrlap!")} className="px-8 py-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition shadow-lg shrink-0 w-full md:w-auto">
-                        Napi Napló Hozzáadása
-                      </button>
+                      
+                      {!hasLoggedToday && (
+                        <button 
+                          onClick={() => setIsLogModalOpen(true)}
+                          className="px-8 py-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition shadow-lg shrink-0 w-full md:w-auto"
+                        >
+                          Napi Napló Hozzáadása
+                        </button>
+                      )}
                     </div>
                   </div>
 
+                  {/* KORÁBBI NAPLÓK LISTÁJA */}
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                     <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                       <h3 className="text-xl font-bold text-gray-800">Korábbi naplóid</h3>
-                      <span className="text-sm font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">3 Napos Széria 🔥</span>
+                      {clientLogs.length > 0 && (
+                        <span className="text-sm font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">
+                          {clientLogs.length} Napló rögzítve 🔥
+                        </span>
+                      )}
                     </div>
                     
-                    <ul className="divide-y divide-gray-200">
-                      {[
-                        { date: "Ma (Előző napi adatok)", sleep: "7.5 óra", mood: "😊 Szuper", color: "text-emerald-600", bg: "bg-emerald-50" },
-                        { date: "Tegnap", sleep: "6 óra", mood: "😐 Közepes", color: "text-yellow-600", bg: "bg-yellow-50" },
-                        { date: "Tegnapelőtt", sleep: "8 óra", mood: "😊 Szuper", color: "text-emerald-600", bg: "bg-emerald-50" },
-                      ].map((log, idx) => (
-                        <li key={idx} className="p-6 sm:px-8 hover:bg-gray-50 transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 cursor-pointer" onClick={() => alert("Ide jön a részletes nézet!")}>
-                          <div>
-                            <p className="font-bold text-gray-900 text-lg mb-1">{log.date}</p>
-                            <p className="text-gray-500 text-sm">Alvás: {log.sleep} • Víz: 2.5 L</p>
-                          </div>
-                          <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                            <span className={`px-4 py-2 rounded-lg text-sm font-bold ${log.bg} ${log.color}`}>{log.mood}</span>
-                            <span className="text-gray-400 font-bold hover:text-emerald-600 transition">Részletek →</span>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="p-4 text-center border-t border-gray-100">
-                      <button className="text-sm font-bold text-gray-500 hover:text-gray-800 transition">Összes mutatása ↓</button>
-                    </div>
+                    {clientLogs.length === 0 ? (
+                      <div className="p-10 text-center text-gray-500">
+                        <div className="text-4xl mb-3 opacity-50"></div>
+                        <p>Még nem rögzítettél adatot.</p>
+                      </div>
+                    ) : (
+                      <ul className="divide-y divide-gray-100">
+                        {clientLogs.map((log) => {
+                          const isGood = log.mood.includes("Szuper") || log.mood.includes("Jó");
+                          const isBad = log.mood.includes("Rossz");
+                          const badgeColor = isGood ? "text-emerald-700 bg-emerald-50" : (isBad ? "text-red-700 bg-red-50" : "text-yellow-700 bg-yellow-50");
+
+                          return (
+                            <li key={log.id} className="p-6 sm:px-8 hover:bg-gray-50 transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 cursor-pointer">
+                              <div>
+                                {/* JAVÍTVA: Itt hívjuk meg az okos dátumformázó függvényt! */}
+                                <p className="font-bold text-gray-900 text-lg mb-1">{formatDateLabel(log.date)}</p>
+                                <p className="text-gray-500 text-sm">Alvás: {log.sleep_hours} óra • Víz: {log.water_liters} L • Stressz: {log.stress_level}/10</p>
+                              </div>
+                              <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                                <span className={`px-4 py-2 rounded-lg text-sm font-bold ${badgeColor}`}>
+                                  {log.mood}
+                                </span>
+                                <span className="text-gray-400 font-bold hover:text-emerald-600 transition">Részletek →</span>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
                   </div>
                 </div>
               )}
@@ -408,20 +524,16 @@ export default function Home() {
             <div className="animate-fade-in-up max-w-4xl mx-auto">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6">
                 <div className={`h-32 bg-gradient-to-r ${themeGradient} w-full relative`}></div>
-                
                 <div className="px-8 pb-8 flex flex-col sm:flex-row items-center sm:items-start relative -mt-16">
                   <div className="h-32 w-32 bg-white rounded-full p-1 shadow-lg shrink-0 relative z-10">
                     <div className="h-full w-full bg-gray-100 rounded-full flex items-center justify-center text-5xl font-extrabold text-gray-400">
                       {loggedInUser.charAt(0).toUpperCase()}
                     </div>
                   </div>
-                  
-                  {/* ÚJ: Dinamikusan kiírjuk az edző szakmáját a név alá! */}
                   <div className="mt-4 sm:mt-20 sm:ml-6 text-center sm:text-left flex-1">
                     <h2 className="text-3xl font-extrabold text-gray-900">{loggedInUser}</h2>
                     <p className="text-gray-500 font-medium">{isCoach ? (userSpecialization || "Személyi Edző") : "Boosted Kliens"}</p>
                   </div>
-                  
                   <div className="mt-6 sm:mt-20 sm:ml-auto">
                     <button className="px-6 py-2 bg-gray-100 text-gray-800 font-bold rounded-lg hover:bg-gray-200 transition text-sm">
                       Profil Szerkesztése
@@ -441,7 +553,7 @@ export default function Home() {
                       </div>
                       <div className="flex justify-between items-center pb-4 border-b border-gray-100">
                         <span className="text-gray-600">Naplózások</span>
-                        <span className={`font-bold ${themeText} ${themeBg} px-2 py-1 rounded`}>24 alkalom</span>
+                        <span className={`font-bold ${themeText} ${themeBg} px-2 py-1 rounded`}>{clientLogs.length} alkalom</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Jelenlegi széria</span>
@@ -454,7 +566,6 @@ export default function Home() {
                 <div className="md:col-span-2 space-y-6">
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
                     <h3 className="text-lg font-bold text-gray-900 mb-6">Fiók Információk</h3>
-                    
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Teljes Név</label>
@@ -462,8 +573,6 @@ export default function Home() {
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fiók Típusa</label>
-                        
-                        {/* ÚJ: Itt is megjelenik a pontos szakma a kártyán */}
                         <p className={`font-medium p-3 rounded-lg border ${isCoach ? "text-purple-700 bg-purple-50 border-purple-100" : "text-emerald-700 bg-emerald-50 border-emerald-100"}`}>
                           {isCoach ? `${userSpecialization || "Edzői Fiók"}` : "Kliens Fiók"}
                         </p>
@@ -489,7 +598,97 @@ export default function Home() {
 
         </main>
 
-        {/* --- MEGHÍVÓ MODAL --- */}
+        {/* ========================================== */}
+        {/* KLIENS: NAPI NAPLÓ MODAL (CSÚSZKÁS ŰRLAP)  */}
+        {/* ========================================== */}
+        {isLogModalOpen && !isCoach && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg relative animate-fade-in-up max-h-[90vh] overflow-y-auto">
+              <button onClick={() => setIsLogModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold">×</button>
+              
+              <div className="text-center mb-6">
+                <span className="text-4xl">📝</span>
+                <h2 className="text-2xl font-extrabold text-gray-900 mt-2">Mai Napló</h2>
+                <p className="text-gray-500 text-sm">Hogyan telt a napod? Légy őszinte!</p>
+              </div>
+
+              <div className="space-y-8">
+                {/* 1. Alvás */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="font-bold text-gray-700 flex items-center">😴 Alvás mennyisége</label>
+                    <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">{sleepHours} óra</span>
+                  </div>
+                  <input 
+                    type="range" min="0" max="12" step="1" 
+                    value={sleepHours} onChange={(e) => setSleepHours(parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 mt-1"><span>0 óra</span><span>12+ óra</span></div>
+                </div>
+
+                {/* 2. Stressz */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="font-bold text-gray-700 flex items-center">🤯 Napi Stresszszint</label>
+                    <span className="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">{stressLevel} / 10</span>
+                  </div>
+                  <input 
+                    type="range" min="1" max="10" step="1" 
+                    value={stressLevel} onChange={(e) => setStressLevel(parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 mt-1"><span>Nyugodt</span><span>Kibírhatatlan</span></div>
+                </div>
+
+                {/* 3. Víz (JAVÍTVA: 0.25 lépésköz) */}
+                <div>
+                  <label className="font-bold text-gray-700 block mb-2">💧 Vízfogyasztás (Liter)</label>
+                  <div className="flex items-center justify-between bg-gray-50 p-2 rounded-xl border border-gray-200">
+                    <button type="button" onClick={() => setWaterLiters(Math.max(0, waterLiters - 0.25))} className="w-12 h-12 rounded-lg bg-white shadow text-gray-600 font-bold text-xl hover:bg-gray-100">-</button>
+                    {/* A .toFixed(2) biztosítja, hogy pl. 2.50 formában jelenjen meg */}
+                    <span className="text-2xl font-extrabold text-blue-600">{waterLiters.toFixed(2)} L</span>
+                    <button type="button" onClick={() => setWaterLiters(waterLiters + 0.25)} className="w-12 h-12 rounded-lg bg-white shadow text-gray-600 font-bold text-xl hover:bg-gray-100">+</button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2 text-center">Tipp: 1 pohár = 0.25 L</p>
+                </div>
+
+                {/* 4. Hangulat */}
+                <div>
+                  <label className="font-bold text-gray-700 block mb-2">🎭 Általános Hangulat</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {moodOptions.map((opt) => (
+                      <button 
+                        key={opt.label} type="button"
+                        onClick={() => setMood(`${opt.icon} ${opt.label}`)}
+                        className={`p-3 rounded-xl border flex flex-col items-center justify-center transition ${mood.includes(opt.label) ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200" : "border-gray-200 bg-white hover:bg-gray-50 text-gray-500"}`}
+                      >
+                        <span className="text-2xl mb-1">{opt.icon}</span>
+                        <span className={`text-sm font-bold ${mood.includes(opt.label) ? "text-emerald-700" : ""}`}>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 5. Megjegyzés */}
+                <div>
+                  <label className="font-bold text-gray-700 block mb-2">📝 Megjegyzés a szakértőnek (Opcionális)</label>
+                  <textarea 
+                    rows="2" placeholder="Fájt a térdem a mai edzésen..."
+                    value={logNotes} onChange={(e) => setLogNotes(e.target.value)}
+                    className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-gray-900 text-sm"
+                  ></textarea>
+                </div>
+
+                <button onClick={handleSaveLog} className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl hover:bg-black transition shadow-lg">
+                  Mentés és Beküldés
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- EDZŐ: MEGHÍVÓ MODAL --- */}
         {isModalOpen && isCoach && (
            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
            <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md relative">

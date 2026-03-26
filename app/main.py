@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Date
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Date, Float
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 import hashlib
 import secrets
@@ -40,7 +40,7 @@ class DailyLog(Base):
     date = Column(Date, index=True)
     sleep_hours = Column(Integer)
     stress_level = Column(Integer)
-    water_liters = Column(Integer)
+    water_liters = Column(Float)
     mood = Column(String)
     notes = Column(String, nullable=True)
 
@@ -82,7 +82,7 @@ class DailyLogCreate(BaseModel):
     date: str 
     sleep_hours: int
     stress_level: int
-    water_liters: int
+    water_liters: float
     mood: str
     notes: str = None
 
