@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 import hashlib
 import secrets
+import json
 from datetime import datetime, timedelta
 
 # --- 1. Adatbázis Beállítás (SQLite) ---
@@ -22,7 +23,8 @@ class User(Base):
     full_name = Column(String)
     role = Column(String, default="COACH")
     coach_id = Column(Integer, nullable=True)
-    specialization = Column(String, nullable=True) # ÚJ: Szakma/Szakterület (pl. Dietetikus)
+    specialization = Column(String, nullable=True)
+    weekly_plan = Column(String, default="{}") # ÚJ: Eheti terv JSON formátumban
 
 class Invite(Base):
     __tablename__ = "invites"
@@ -41,6 +43,7 @@ class DailyLog(Base):
     sleep_hours = Column(Integer)
     stress_level = Column(Integer)
     water_liters = Column(Float)
+    workout_minutes = Column(Integer, default=0) # ÚJ: Edzés hossza percben
     mood = Column(String)
     notes = Column(String, nullable=True)
 
@@ -61,7 +64,7 @@ class UserRegister(BaseModel):
     email: str
     password: str
     full_name: str
-    specialization: str = "Személyi Edző" # ÚJ: Alapértelmezett érték, de jönni fog a frontendi selectből
+    specialization: str = "Személyi Edző" 
 
 class UserLogin(BaseModel):
     email: str
@@ -83,8 +86,12 @@ class DailyLogCreate(BaseModel):
     sleep_hours: int
     stress_level: int
     water_liters: float
+    workout_minutes: int # ÚJ
     mood: str
     notes: str = None
+
+class PlanUpdate(BaseModel): # ÚJ
+    weekly_plan: str
 
 def get_db():
     db = SessionLocal()
@@ -100,13 +107,9 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Ez az email már regisztrálva van!")
     hashed_pw = hashlib.sha256(user.password.encode()).hexdigest()
     
-    # ÚJ: A specialization-t is elmentjük!
     new_user = User(
-        email=user.email, 
-        password_hash=hashed_pw, 
-        full_name=user.full_name, 
-        role="COACH",
-        specialization=user.specialization 
+        email=user.email, password_hash=hashed_pw, full_name=user.full_name, 
+        role="COACH", specialization=user.specialization 
     )
     db.add(new_user)
     db.commit()
@@ -119,12 +122,10 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Hibás email vagy jelszó!")
     
     return {
-        "message": "Sikeres belépés!", 
-        "full_name": db_user.full_name, 
-        "coach_id": db_user.coach_id, 
-        "user_id": db_user.id,        
-        "role": db_user.role,
-        "specialization": db_user.specialization # ÚJ: Visszaküldjük a szakmát is a frontendnek
+        "message": "Sikeres belépés!", "full_name": db_user.full_name, 
+        "coach_id": db_user.coach_id, "user_id": db_user.id,        
+        "role": db_user.role, "specialization": db_user.specialization,
+        "weekly_plan": db_user.weekly_plan # ÚJ: Visszaküldjük az eheti tervet is
     }
 
 @app.post("/api/invite")
@@ -139,10 +140,8 @@ def create_invite(req: InviteRequest, db: Session = Depends(get_db)):
 @app.get("/api/invite/{token}")
 def check_invite(token: str, db: Session = Depends(get_db)):
     invite = db.query(Invite).filter(Invite.token == token, Invite.used == False).first()
-    if not invite:
+    if not invite or invite.expires_at < datetime.now():
         raise HTTPException(status_code=404, detail="Ez a meghívó érvénytelen vagy már felhasználták!")
-    if invite.expires_at < datetime.now():
-        raise HTTPException(status_code=400, detail="Ez a meghívó lejárt (24 óra letelt)!")
         
     coach = db.query(User).filter(User.id == invite.coach_id).first()
     return {"valid": True, "coach_name": coach.full_name, "prefilled_email": invite.client_email}
@@ -158,11 +157,8 @@ def register_client(req: ClientRegister, db: Session = Depends(get_db)):
 
     hashed_pw = hashlib.sha256(req.password.encode()).hexdigest()
     new_client = User(
-        email=req.email, 
-        password_hash=hashed_pw, 
-        full_name=req.full_name, 
-        role="CLIENT", 
-        coach_id=invite.coach_id 
+        email=req.email, password_hash=hashed_pw, full_name=req.full_name, 
+        role="CLIENT", coach_id=invite.coach_id 
     )
     invite.used = True 
     db.add(new_client)
@@ -172,7 +168,8 @@ def register_client(req: ClientRegister, db: Session = Depends(get_db)):
 @app.get("/api/coach/{coach_id}/clients")
 def get_coach_clients(coach_id: int, db: Session = Depends(get_db)):
     clients = db.query(User).filter(User.role == "CLIENT", User.coach_id == coach_id).all()
-    return [{"id": c.id, "full_name": c.full_name, "email": c.email} for c in clients]
+    # ÚJ: Itt is küldjük a heti tervet az edzőnek
+    return [{"id": c.id, "full_name": c.full_name, "email": c.email, "weekly_plan": c.weekly_plan} for c in clients]
 
 @app.post("/api/client/log")
 def create_daily_log(log: DailyLogCreate, db: Session = Depends(get_db)):
@@ -187,7 +184,8 @@ def create_daily_log(log: DailyLogCreate, db: Session = Depends(get_db)):
 
     new_log = DailyLog(
         client_id=log.client_id, date=log_date, sleep_hours=log.sleep_hours,
-        stress_level=log.stress_level, water_liters=log.water_liters, mood=log.mood, notes=log.notes
+        stress_level=log.stress_level, water_liters=log.water_liters, 
+        workout_minutes=log.workout_minutes, mood=log.mood, notes=log.notes # ÚJ: workout_minutes mentése
     )
     db.add(new_log)
     db.commit()
@@ -197,6 +195,16 @@ def create_daily_log(log: DailyLogCreate, db: Session = Depends(get_db)):
 def get_client_logs(client_id: int, db: Session = Depends(get_db)):
     logs = db.query(DailyLog).filter(DailyLog.client_id == client_id).order_by(DailyLog.date.desc()).all()
     return [
-        {"id": l.id, "date": l.date.strftime("%Y-%m-%d"), "sleep_hours": l.sleep_hours, "stress_level": l.stress_level, "water_liters": l.water_liters, "mood": l.mood, "notes": l.notes}
+        {"id": l.id, "date": l.date.strftime("%Y-%m-%d"), "sleep_hours": l.sleep_hours, "stress_level": l.stress_level, "water_liters": l.water_liters, "workout_minutes": l.workout_minutes, "mood": l.mood, "notes": l.notes}
         for l in logs
     ]
+
+# ÚJ VÉGPONT: Kliens eheti tervének frissítése
+@app.put("/api/client/{client_id}/plan")
+def update_client_plan(client_id: int, plan: PlanUpdate, db: Session = Depends(get_db)):
+    client = db.query(User).filter(User.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Kliens nem található")
+    client.weekly_plan = plan.weekly_plan
+    db.commit()
+    return {"message": "Terv sikeresen frissítve!"}
