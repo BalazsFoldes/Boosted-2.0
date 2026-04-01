@@ -28,6 +28,13 @@ export default function Home() {
 
   const [clients, setClients] = useState([]);
   const [currentTab, setCurrentTab] = useState("overview");
+  
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredClients = clients.filter(client => 
+    client.full_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    client.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // ==========================================
   // ÁLLAPOTOK: KLIENS NAPI NAPLÓZÁS
@@ -651,33 +658,53 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-                      <h3 className="text-lg font-bold text-gray-800">Saját klienseim ({clients.length})</h3>
+                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <h3 className="text-lg font-bold text-gray-800 whitespace-nowrap">Saját klienseim ({clients.length})</h3>
+                      {/* ÚJ: Kereső mező */}
+                      <div className="w-full sm:w-82 relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span className="text-gray-400"></span>
+                        </div>
+                        <input 
+                          type="text" 
+                          placeholder="Keresés név vagy email alapján..." 
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full pl-3 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 font-sans font-medium tracking-wide transition-all"
+                        />
+                      </div>
                     </div>
-                    <ul className="divide-y divide-gray-200">
-                      {clients.map(client => (
-                        <li key={client.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition cursor-pointer" onClick={() => handleViewClient(client)}>
-                          <div className="flex items-center">
-                            <div className="h-12 w-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xl mr-4 shrink-0">
-                              {client.full_name.charAt(0).toUpperCase()}
+                    
+                    {/* Üres állapot, ha a keresés nem hoz találatot */}
+                    {filteredClients.length === 0 ? (
+                      <div className="p-8 text-center text-gray-500 text-sm font-medium">
+                        Nincs találat a keresésre: &quot;{searchQuery}&quot;
+                      </div>
+                    ) : (
+                      <ul className="divide-y divide-gray-200">
+                        {filteredClients.map(client => (
+                          <li key={client.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition cursor-pointer" onClick={() => handleViewClient(client)}>
+                            <div className="flex items-center">
+                              <div className="h-12 w-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xl mr-4 shrink-0">
+                                {client.full_name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-md font-bold text-gray-900">{client.full_name}</p>
+                                <p className="text-sm text-gray-500">{client.email}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-md font-bold text-gray-900">{client.full_name}</p>
-                              <p className="text-sm text-gray-500">{client.email}</p>
+                            <div className="flex items-center gap-4">
+                              {client.total_boosts > 0 && (
+                                <span className="hidden sm:inline-block text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">⚡ {client.total_boosts} Boost</span>
+                              )}
+                              <button className="text-sm bg-white border border-gray-300 px-4 py-2 rounded-lg text-gray-700 font-bold hover:bg-gray-50 transition shadow-sm ml-4 shrink-0">
+                                Megtekintés →
+                              </button>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            {/* Edző látja a lista nézetben is, ha a kliens kapott már Boostot */}
-                            {client.total_boosts > 0 && (
-                              <span className="hidden sm:inline-block text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">⚡ {client.total_boosts} Boost</span>
-                            )}
-                            <button className="text-sm bg-white border border-gray-300 px-4 py-2 rounded-lg text-gray-700 font-bold hover:bg-gray-50 transition shadow-sm ml-4 shrink-0">
-                              Megtekintés →
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 )
               ) : (
