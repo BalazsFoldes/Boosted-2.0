@@ -24,6 +24,12 @@ class User(Base):
     role = Column(String, default="COACH")
     coach_id = Column(Integer, nullable=True)
     specialization = Column(String, nullable=True)
+    weekly_plan = Column(String, default="{}")
+    coach_notes = Column(String, default="") 
+    
+    # ÚJ: Gamifikáció oszlopok a kliensnek
+    total_boosts = Column(Integer, default=0)
+    has_unseen_boost = Column(Boolean, default=False)
 
 class Invite(Base):
     __tablename__ = "invites"
@@ -46,13 +52,12 @@ class DailyLog(Base):
     mood = Column(String)
     notes = Column(String, nullable=True)
 
-# ÚJ MODELL: Heti Tervek
 class WeeklyPlan(Base):
     __tablename__ = "weekly_plans"
     id = Column(Integer, primary_key=True, index=True)
     client_id = Column(Integer, index=True)
-    week_start_date = Column(Date, index=True) # A hét hétfőjének dátuma
-    plan_data = Column(String, default="{}") # JSON: { "Hétfő": "...", "Kedd": "..." }
+    week_start_date = Column(Date, index=True)
+    plan_data = Column(String, default="{}")
 
 Base.metadata.create_all(bind=engine)
 
@@ -98,8 +103,11 @@ class DailyLogCreate(BaseModel):
     notes: str = None
 
 class PlanUpdate(BaseModel):
-    week_start_date: str # YYYY-MM-DD
-    plan_data: str # JSON string
+    week_start_date: str 
+    plan_data: str 
+
+class NoteUpdate(BaseModel): 
+    coach_notes: str
 
 def get_db():
     db = SessionLocal()
@@ -108,7 +116,6 @@ def get_db():
     finally:
         db.close()
 
-# Segédfüggvény: A dátumhoz tartozó hétfő lekérése
 def get_monday(d: datetime.date) -> datetime.date:
     return d - timedelta(days=d.weekday())
 
@@ -133,7 +140,6 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     if not db_user or db_user.password_hash != hashlib.sha256(user.password.encode()).hexdigest():
         raise HTTPException(status_code=400, detail="Hibás email vagy jelszó!")
     
-    # Ha kliens lép be, kiküldjük neki az aktuális heti tervét is
     current_plan = "{}"
     if db_user.role == "CLIENT":
         monday = get_monday(datetime.now().date())
@@ -145,7 +151,9 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "message": "Sikeres belépés!", "full_name": db_user.full_name, 
         "coach_id": db_user.coach_id, "user_id": db_user.id,        
         "role": db_user.role, "specialization": db_user.specialization,
-        "weekly_plan": current_plan
+        "weekly_plan": current_plan,
+        "total_boosts": db_user.total_boosts, # ÚJ: Visszaküldjük a Boost adatokat
+        "has_unseen_boost": db_user.has_unseen_boost
     }
 
 @app.post("/api/invite")
@@ -189,13 +197,16 @@ def register_client(req: ClientRegister, db: Session = Depends(get_db)):
 def get_coach_clients(coach_id: int, db: Session = Depends(get_db)):
     clients = db.query(User).filter(User.role == "CLIENT", User.coach_id == coach_id).all()
     
-    # Hozzáadjuk az aktuális heti tervet
     result = []
     monday = get_monday(datetime.now().date())
     for c in clients:
         plan = db.query(WeeklyPlan).filter(WeeklyPlan.client_id == c.id, WeeklyPlan.week_start_date == monday).first()
         plan_data = plan.plan_data if plan else "{}"
-        result.append({"id": c.id, "full_name": c.full_name, "email": c.email, "weekly_plan": plan_data})
+        result.append({
+            "id": c.id, "full_name": c.full_name, "email": c.email, 
+            "weekly_plan": plan_data, "coach_notes": c.coach_notes,
+            "total_boosts": c.total_boosts # ÚJ: Edző is látja, hány boostot kapott a kliens
+        })
         
     return result
 
@@ -204,7 +215,7 @@ def create_daily_log(log: DailyLogCreate, db: Session = Depends(get_db)):
     try:
         log_date = datetime.strptime(log.date, "%Y-%m-%d").date()
     except ValueError:
-        raise HTTPException(status_code=400, detail="Hibás dátum formátum! Használd a YYYY-MM-DD formátumot.")
+        raise HTTPException(status_code=400, detail="Hibás dátum formátum!")
 
     existing_log = db.query(DailyLog).filter(DailyLog.client_id == log.client_id, DailyLog.date == log_date).first()
     if existing_log:
@@ -227,18 +238,15 @@ def get_client_logs(client_id: int, db: Session = Depends(get_db)):
         for l in logs
     ]
 
-# ÚJ: Bármelyik heti terv lekérése a klienshez
 @app.get("/api/client/{client_id}/plans")
 def get_client_plans(client_id: int, db: Session = Depends(get_db)):
     plans = db.query(WeeklyPlan).filter(WeeklyPlan.client_id == client_id).order_by(WeeklyPlan.week_start_date.desc()).all()
     return [{"week_start": p.week_start_date.strftime("%Y-%m-%d"), "plan_data": p.plan_data} for p in plans]
 
-# MÓDOSÍTVA: Heti terv mentése/frissítése (Dátum alapján)
 @app.put("/api/client/{client_id}/plan")
 def update_client_plan(client_id: int, plan: PlanUpdate, db: Session = Depends(get_db)):
     try:
         week_start = datetime.strptime(plan.week_start_date, "%Y-%m-%d").date()
-        # Ellenőrizzük, hogy tényleg hétfő-e
         if week_start.weekday() != 0:
             raise HTTPException(status_code=400, detail="A kezdő dátumnak hétfőnek kell lennie!")
     except ValueError:
@@ -254,3 +262,34 @@ def update_client_plan(client_id: int, plan: PlanUpdate, db: Session = Depends(g
         
     db.commit()
     return {"message": "Terv sikeresen frissítve!"}
+
+@app.put("/api/client/{client_id}/notes")
+def update_client_notes(client_id: int, note_data: NoteUpdate, db: Session = Depends(get_db)):
+    client = db.query(User).filter(User.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Kliens nem található")
+    client.coach_notes = note_data.coach_notes
+    db.commit()
+    return {"message": "Jegyzet sikeresen mentve!"}
+
+# ==========================================
+# ÚJ VÉGPONTOK A GAMIFIKÁCIÓHOZ (BOOST)
+# ==========================================
+@app.post("/api/client/{client_id}/boost")
+def send_boost(client_id: int, db: Session = Depends(get_db)):
+    client = db.query(User).filter(User.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Kliens nem található")
+    
+    client.total_boosts += 1
+    client.has_unseen_boost = True
+    db.commit()
+    return {"message": "Boost elküldve!", "total_boosts": client.total_boosts}
+
+@app.post("/api/client/{client_id}/clear-boost")
+def clear_boost(client_id: int, db: Session = Depends(get_db)):
+    client = db.query(User).filter(User.id == client_id).first()
+    if client:
+        client.has_unseen_boost = False
+        db.commit()
+    return {"message": "Boost láttamozva"}
