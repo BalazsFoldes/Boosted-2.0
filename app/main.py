@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Date, Float
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Date, Float, ForeignKey
+from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 import hashlib
 import secrets
 import json
@@ -24,7 +24,6 @@ class User(Base):
     role = Column(String, default="COACH")
     coach_id = Column(Integer, nullable=True)
     specialization = Column(String, nullable=True)
-    weekly_plan = Column(String, default="{}") # ÚJ: Eheti terv JSON formátumban
 
 class Invite(Base):
     __tablename__ = "invites"
@@ -43,9 +42,17 @@ class DailyLog(Base):
     sleep_hours = Column(Integer)
     stress_level = Column(Integer)
     water_liters = Column(Float)
-    workout_minutes = Column(Integer, default=0) # ÚJ: Edzés hossza percben
+    workout_minutes = Column(Integer, default=0)
     mood = Column(String)
     notes = Column(String, nullable=True)
+
+# ÚJ MODELL: Heti Tervek
+class WeeklyPlan(Base):
+    __tablename__ = "weekly_plans"
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, index=True)
+    week_start_date = Column(Date, index=True) # A hét hétfőjének dátuma
+    plan_data = Column(String, default="{}") # JSON: { "Hétfő": "...", "Kedd": "..." }
 
 Base.metadata.create_all(bind=engine)
 
@@ -86,12 +93,13 @@ class DailyLogCreate(BaseModel):
     sleep_hours: int
     stress_level: int
     water_liters: float
-    workout_minutes: int # ÚJ
+    workout_minutes: int
     mood: str
     notes: str = None
 
-class PlanUpdate(BaseModel): # ÚJ
-    weekly_plan: str
+class PlanUpdate(BaseModel):
+    week_start_date: str # YYYY-MM-DD
+    plan_data: str # JSON string
 
 def get_db():
     db = SessionLocal()
@@ -99,6 +107,10 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Segédfüggvény: A dátumhoz tartozó hétfő lekérése
+def get_monday(d: datetime.date) -> datetime.date:
+    return d - timedelta(days=d.weekday())
 
 # --- 4. Végpontok ---
 @app.post("/api/register")
@@ -121,11 +133,19 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     if not db_user or db_user.password_hash != hashlib.sha256(user.password.encode()).hexdigest():
         raise HTTPException(status_code=400, detail="Hibás email vagy jelszó!")
     
+    # Ha kliens lép be, kiküldjük neki az aktuális heti tervét is
+    current_plan = "{}"
+    if db_user.role == "CLIENT":
+        monday = get_monday(datetime.now().date())
+        plan = db.query(WeeklyPlan).filter(WeeklyPlan.client_id == db_user.id, WeeklyPlan.week_start_date == monday).first()
+        if plan:
+            current_plan = plan.plan_data
+
     return {
         "message": "Sikeres belépés!", "full_name": db_user.full_name, 
         "coach_id": db_user.coach_id, "user_id": db_user.id,        
         "role": db_user.role, "specialization": db_user.specialization,
-        "weekly_plan": db_user.weekly_plan # ÚJ: Visszaküldjük az eheti tervet is
+        "weekly_plan": current_plan
     }
 
 @app.post("/api/invite")
@@ -168,8 +188,16 @@ def register_client(req: ClientRegister, db: Session = Depends(get_db)):
 @app.get("/api/coach/{coach_id}/clients")
 def get_coach_clients(coach_id: int, db: Session = Depends(get_db)):
     clients = db.query(User).filter(User.role == "CLIENT", User.coach_id == coach_id).all()
-    # ÚJ: Itt is küldjük a heti tervet az edzőnek
-    return [{"id": c.id, "full_name": c.full_name, "email": c.email, "weekly_plan": c.weekly_plan} for c in clients]
+    
+    # Hozzáadjuk az aktuális heti tervet
+    result = []
+    monday = get_monday(datetime.now().date())
+    for c in clients:
+        plan = db.query(WeeklyPlan).filter(WeeklyPlan.client_id == c.id, WeeklyPlan.week_start_date == monday).first()
+        plan_data = plan.plan_data if plan else "{}"
+        result.append({"id": c.id, "full_name": c.full_name, "email": c.email, "weekly_plan": plan_data})
+        
+    return result
 
 @app.post("/api/client/log")
 def create_daily_log(log: DailyLogCreate, db: Session = Depends(get_db)):
@@ -185,7 +213,7 @@ def create_daily_log(log: DailyLogCreate, db: Session = Depends(get_db)):
     new_log = DailyLog(
         client_id=log.client_id, date=log_date, sleep_hours=log.sleep_hours,
         stress_level=log.stress_level, water_liters=log.water_liters, 
-        workout_minutes=log.workout_minutes, mood=log.mood, notes=log.notes # ÚJ: workout_minutes mentése
+        workout_minutes=log.workout_minutes, mood=log.mood, notes=log.notes
     )
     db.add(new_log)
     db.commit()
@@ -199,12 +227,30 @@ def get_client_logs(client_id: int, db: Session = Depends(get_db)):
         for l in logs
     ]
 
-# ÚJ VÉGPONT: Kliens eheti tervének frissítése
+# ÚJ: Bármelyik heti terv lekérése a klienshez
+@app.get("/api/client/{client_id}/plans")
+def get_client_plans(client_id: int, db: Session = Depends(get_db)):
+    plans = db.query(WeeklyPlan).filter(WeeklyPlan.client_id == client_id).order_by(WeeklyPlan.week_start_date.desc()).all()
+    return [{"week_start": p.week_start_date.strftime("%Y-%m-%d"), "plan_data": p.plan_data} for p in plans]
+
+# MÓDOSÍTVA: Heti terv mentése/frissítése (Dátum alapján)
 @app.put("/api/client/{client_id}/plan")
 def update_client_plan(client_id: int, plan: PlanUpdate, db: Session = Depends(get_db)):
-    client = db.query(User).filter(User.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Kliens nem található")
-    client.weekly_plan = plan.weekly_plan
+    try:
+        week_start = datetime.strptime(plan.week_start_date, "%Y-%m-%d").date()
+        # Ellenőrizzük, hogy tényleg hétfő-e
+        if week_start.weekday() != 0:
+            raise HTTPException(status_code=400, detail="A kezdő dátumnak hétfőnek kell lennie!")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Hibás dátum formátum!")
+
+    existing_plan = db.query(WeeklyPlan).filter(WeeklyPlan.client_id == client_id, WeeklyPlan.week_start_date == week_start).first()
+    
+    if existing_plan:
+        existing_plan.plan_data = plan.plan_data
+    else:
+        new_plan = WeeklyPlan(client_id=client_id, week_start_date=week_start, plan_data=plan.plan_data)
+        db.add(new_plan)
+        
     db.commit()
     return {"message": "Terv sikeresen frissítve!"}
