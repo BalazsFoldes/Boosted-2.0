@@ -37,9 +37,10 @@ export default function Home() {
     client.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+// ==========================================
+  // ÁLLAPOTOK: KLIENS NAPI NAPLÓZÁS & ADATOK
   // ==========================================
-  // ÁLLAPOTOK: KLIENS NAPI NAPLÓZÁS
-  // ==========================================
+  const [selectedLog, setSelectedLog] = useState(null);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [clientLogs, setClientLogs] = useState([]); 
   const [hasLoggedToday, setHasLoggedToday] = useState(false); 
@@ -47,9 +48,19 @@ export default function Home() {
   const [sleepHours, setSleepHours] = useState(7); 
   const [stressLevel, setStressLevel] = useState(5); 
   const [waterLiters, setWaterLiters] = useState(2.0); 
-  const [workoutMinutes, setWorkoutMinutes] = useState(0); 
+  
+  // Új napló adatok
+  const [didWorkout, setDidWorkout] = useState(true); // Volt-e edzés?
+  const [workoutMinutes, setWorkoutMinutes] = useState(60); 
+  const [workoutIntensity, setWorkoutIntensity] = useState(5); // 1-10 RPE
+  const [steps, setSteps] = useState(""); // Lépésszám
+  const [dailyWeight, setDailyWeight] = useState(""); // Napi testsúly
+  
   const [mood, setMood] = useState("😊 Szuper"); 
   const [logNotes, setLogNotes] = useState("");
+
+  // Kliens profil adatai (Egyelőre a napi mérésekből frissítjük)
+  const [clientProfile, setClientProfile] = useState({ height: 175, weight: 72, goalWeight: 68 });
 
   // ==========================================
   // ÁLLAPOTOK: EDZŐI KLIENS ADATLAP & TERVEZŐ
@@ -179,6 +190,8 @@ export default function Home() {
     setPlanDay("Hétfő");
     setPlanText("");
     setCoachNotes(client.coach_notes || "");
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     
     try {
       const resLogs = await fetch(`http://localhost:8000/api/client/${client.id}/logs`);
@@ -199,10 +212,32 @@ export default function Home() {
   const handleSaveLog = async () => {
     try {
       const today = new Date().toISOString().split("T")[0]; 
+      
+      // Ha nem edzett, az adatok 0-k lesznek
+      const finalMinutes = didWorkout ? workoutMinutes : 0;
+      const finalIntensity = didWorkout ? workoutIntensity : 0;
+
+      // Alap payload, az opcionális mezők nélkül
       const payload = {
-        client_id: userId, date: today, sleep_hours: sleepHours, stress_level: stressLevel,
-        water_liters: waterLiters, workout_minutes: workoutMinutes, mood: mood, notes: logNotes || "" 
+        client_id: userId, 
+        date: today, 
+        sleep_hours: sleepHours, 
+        stress_level: stressLevel,
+        water_liters: waterLiters, 
+        workout_minutes: finalMinutes, 
+        workout_intensity: finalIntensity,
+        mood: mood, 
+        notes: logNotes || "" 
       };
+
+      // Csak akkor adjuk hozzá a payloadhoz a lépést és a súlyt, ha a kliens tényleg beírt valamit
+      if (steps) {
+        payload.steps = parseInt(steps);
+      }
+      if (dailyWeight) {
+        // A replace miatt akkor sem fagy ki, ha vesszővel (71,5) írja be a súlyát pont (71.5) helyett
+        payload.weight = parseFloat(dailyWeight.replace(',', '.')); 
+      }
 
       const res = await fetch("http://localhost:8000/api/client/log", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -214,10 +249,25 @@ export default function Home() {
         const newLogs = [{...payload, id: Date.now()}, ...clientLogs];
         setClientLogs(newLogs);
         setCurrentStreak(calculateStreak(newLogs));
-        setSleepHours(7); setStressLevel(5); setWaterLiters(2.0); setWorkoutMinutes(0); setMood("😊 Szuper"); setLogNotes("");
+        
+        // Ha adott meg súlyt, frissítjük a profilját
+        if (dailyWeight) {
+          setClientProfile(prev => ({ ...prev, weight: parseFloat(dailyWeight.replace(',', '.')) }));
+        }
+
+        // Visszaállítjuk az alapértékeket a következő napra
+        setSleepHours(7); setStressLevel(5); setWaterLiters(2.0); 
+        setDidWorkout(true); setWorkoutMinutes(60); setWorkoutIntensity(5);
+        setSteps(""); setDailyWeight(""); setMood("😊 Szuper"); setLogNotes("");
       } else {
         const err = await res.json();
-        alert("Hiba: " + err.detail);
+        // JAVÍTÁS: Ha a backend validációs hibát dob, szépen kiírjuk, hogy mi a konkrét baj
+        if (Array.isArray(err.detail)) {
+            const errorMessages = err.detail.map(e => `${e.loc[e.loc.length-1]}: ${e.msg}`).join("\n");
+            alert("Validációs hiba:\n" + errorMessages);
+        } else {
+            alert("Hiba: " + err.detail);
+        }
       }
     } catch (error) {
       alert("Szerver hiba mentés közben.");
@@ -681,7 +731,7 @@ export default function Home() {
                     <h3 className="text-lg font-bold text-gray-900 mb-4">Heti edzésterv</h3>
                     
                     <button onClick={() => setIsPlanModalOpen(true)} className="w-full bg-blue-100 text-blue-700 font-bold py-3 rounded-xl hover:bg-blue-200 transition shadow-sm mb-4">
-                      Részletes Tervező
+                      Részletes tervező
                     </button>
                     
                     <div className="space-y-2">
@@ -761,7 +811,7 @@ export default function Home() {
 
                       <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 md:p-8 rounded-2xl shadow-sm text-white flex flex-col justify-center relative overflow-hidden">
                         <div className="absolute -right-2 -bottom-4 text-7xl opacity-10">📉</div>
-                        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Csapat Átlag Stressz</h4>
+                        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Átlagos Stressz</h4>
                         <div className="flex items-end gap-2 mb-1">
                           <span className="text-5xl font-extrabold text-white">4.2</span>
                           <span className="text-xl text-slate-400 mb-1">/ 10</span>
@@ -918,7 +968,7 @@ export default function Home() {
                       {clientLogs.length > 0 && <span className="text-sm font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">{clientLogs.length} Napló rögzítve 🔥</span>}
                     </div>
                     {clientLogs.length === 0 ? (
-                      <div className="p-10 text-center text-gray-500"><div className="text-4xl mb-3 opacity-50">🏜️</div><p>Még nem rögzítettél adatot.</p></div>
+                      <div className="p-10 text-center text-gray-500"><div className="text-4xl mb-3 opacity-50"></div><p>Még nem rögzítettél adatot.</p></div>
                     ) : (
                       <ul className="divide-y divide-gray-100">
                         {clientLogs.map((log) => {
@@ -926,7 +976,7 @@ export default function Home() {
                           const isBad = log.mood.includes("Rossz");
                           const badgeColor = isGood ? "text-emerald-700 bg-emerald-50" : (isBad ? "text-red-700 bg-red-50" : "text-yellow-700 bg-yellow-50");
                           return (
-                            <li key={log.id} className="p-6 sm:px-8 hover:bg-gray-50 transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 cursor-pointer">
+                            <li key={log.id} onClick={() => setSelectedLog(log)} className="p-6 sm:px-8 hover:bg-gray-50 transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 cursor-pointer">
                               <div>
                                 <p className="font-bold text-gray-900 text-lg mb-1">{formatDateLabel(log.date)}</p>
                                 <p className="text-gray-500 text-sm">Alvás: {log.sleep_hours} óra • Víz: {log.water_liters} L • Edzés: {log.workout_minutes} perc</p>
@@ -1153,71 +1203,112 @@ export default function Home() {
               <button onClick={() => setIsLogModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold">×</button>
               
               <div className="text-center mb-6">
-                <span className="text-4xl">📝</span>
                 <h2 className="text-2xl font-extrabold text-gray-900 mt-2">Mai Napló</h2>
               </div>
 
               <div className="space-y-8">
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="font-bold text-gray-700 flex items-center">😴 Alvás mennyisége</label>
-                    <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">{sleepHours} óra</span>
+                {/* 1. KÖZEG (Biometria) */}
+                <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 space-y-6">
+                  <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide border-b border-gray-200 pb-2">Alapvető Biometria</h3>
+                  
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="font-bold text-gray-700 flex items-center">Alvás mennyisége</label>
+                      <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">{sleepHours} óra</span>
+                    </div>
+                    <input type="range" min="0" max="12" step="1" value={sleepHours} onChange={(e) => setSleepHours(parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
                   </div>
-                  <input type="range" min="0" max="12" step="1" value={sleepHours} onChange={(e) => setSleepHours(parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
-                </div>
 
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="font-bold text-gray-700 flex items-center">🤯 Napi Stresszszint</label>
-                    <span className="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">{stressLevel} / 10</span>
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="font-bold text-gray-700 flex items-center">Napi Stresszszint</label>
+                      <span className="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">{stressLevel} / 10</span>
+                    </div>
+                    <input type="range" min="1" max="10" step="1" value={stressLevel} onChange={(e) => setStressLevel(parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500" />
                   </div>
-                  <input type="range" min="1" max="10" step="1" value={stressLevel} onChange={(e) => setStressLevel(parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500" />
-                </div>
 
-                <div>
-                  <label className="font-bold text-gray-700 block mb-2">💧 Vízfogyasztás (Liter)</label>
-                  <div className="flex items-center justify-between bg-gray-50 p-2 rounded-xl border border-gray-200">
-                    <button type="button" onClick={() => setWaterLiters(Math.max(0, waterLiters - 0.25))} className="w-12 h-12 rounded-lg bg-white shadow text-gray-600 font-bold text-xl hover:bg-gray-100">-</button>
-                    <span className="text-2xl font-extrabold text-blue-600">{waterLiters.toFixed(2)} L</span>
-                    <button type="button" onClick={() => setWaterLiters(waterLiters + 0.25)} className="w-12 h-12 rounded-lg bg-white shadow text-gray-600 font-bold text-xl hover:bg-gray-100">+</button>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="font-bold text-gray-700 flex items-center">🏋️‍♂️ Edzés hossza ma</label>
-                    <span className="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{workoutMinutes} perc</span>
-                  </div>
-                  <input 
-                    type="range" min="0" max="150" step="15" 
-                    value={workoutMinutes} onChange={(e) => setWorkoutMinutes(parseInt(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-gray-700 block mb-2">🎭 Általános Hangulat</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {moodOptions.map((opt) => (
-                      <button key={opt.label} type="button" onClick={() => setMood(`${opt.icon} ${opt.label}`)} className={`p-3 rounded-xl border flex flex-col items-center justify-center transition ${mood.includes(opt.label) ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200" : "border-gray-200 bg-white hover:bg-gray-50 text-gray-500"}`}>
-                        <span className="text-2xl mb-1">{opt.icon}</span>
-                        <span className={`text-sm font-bold ${mood.includes(opt.label) ? "text-emerald-700" : ""}`}>{opt.label}</span>
-                      </button>
-                    ))}
+                  <div>
+                    <label className="font-bold text-gray-700 block mb-2">Vízfogyasztás (Liter)</label>
+                    <div className="flex items-center justify-between bg-white p-2 rounded-xl border border-gray-200 shadow-sm">
+                      <button type="button" onClick={() => setWaterLiters(Math.max(0, waterLiters - 0.25))} className="w-10 h-10 rounded-lg bg-gray-100 text-gray-600 font-bold text-xl hover:bg-gray-200 transition">-</button>
+                      <span className="text-2xl font-extrabold text-blue-600">{waterLiters.toFixed(2)} L</span>
+                      <button type="button" onClick={() => setWaterLiters(waterLiters + 0.25)} className="w-10 h-10 rounded-lg bg-gray-100 text-gray-600 font-bold text-xl hover:bg-gray-200 transition">+</button>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="font-bold text-gray-700 block mb-2">📝 Megjegyzés a szakértőnek (Opcionális)</label>
-                  <textarea 
-                    rows="2" placeholder="Fájt a térdem a mai edzésen..."
-                    value={logNotes} onChange={(e) => setLogNotes(e.target.value)}
-                    className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-gray-900 text-sm"
-                  ></textarea>
+                {/* 2. KÖZEG (Aktivitás és Edzés) */}
+                <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 space-y-6">
+                  <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide border-b border-gray-200 pb-2">Aktivitás</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 mb-1">Lépésszám (Opcionális)</label>
+                      <input type="number" placeholder="pl. 8500" value={steps} onChange={(e) => setSteps(e.target.value)} className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 text-sm font-bold shadow-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 mb-1">Testsúly (Opcionális)</label>
+                      <input type="number" step="0.1" placeholder="pl. 71.5 kg" value={dailyWeight} onChange={(e) => setDailyWeight(e.target.value)} className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-gray-900 text-sm font-bold shadow-sm" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-gray-700 block mb-3">Volt ma edzésed?</label>
+                    <div className="flex gap-4">
+                      <button type="button" onClick={() => setDidWorkout(true)} className={`flex-1 py-3 rounded-xl font-bold transition ${didWorkout ? "bg-blue-600 text-white shadow-md" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}>Igen, edzettem</button>
+                      <button type="button" onClick={() => setDidWorkout(false)} className={`flex-1 py-3 rounded-xl font-bold transition ${!didWorkout ? "bg-red-500 text-white shadow-md" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}>Nem, ma pihentem</button>
+                    </div>
+                  </div>
+
+                  {/* Csak akkor jelenik meg, ha volt edzés */}
+                  {didWorkout && (
+                    <div className="animate-fade-in-up space-y-6 pt-4 border-t border-gray-200 border-dashed">
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="font-bold text-gray-700 flex items-center">Edzés hossza</label>
+                          <span className="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{workoutMinutes} perc</span>
+                        </div>
+                        <input type="range" min="15" max="180" step="15" value={workoutMinutes} onChange={(e) => setWorkoutMinutes(parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+                      </div>
+                      
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="font-bold text-gray-700 flex items-center">Edzés intenzitása</label>
+                          <span className="font-bold text-red-600 bg-red-50 px-2 py-1 rounded">{workoutIntensity} / 10</span>
+                        </div>
+                        <input type="range" min="1" max="10" step="1" value={workoutIntensity} onChange={(e) => setWorkoutIntensity(parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-500" />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <button onClick={handleSaveLog} className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl hover:bg-black transition shadow-lg">
-                  Mentés és Beküldés
+                {/* 3. KÖZEG (Általános) */}
+                <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 space-y-6">
+                  <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide border-b border-gray-200 pb-2">Egyéb</h3>
+                  <div>
+                    <label className="font-bold text-gray-700 block mb-2">Hangulatod</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {moodOptions.map((opt) => (
+                        <button key={opt.label} type="button" onClick={() => setMood(`${opt.icon} ${opt.label}`)} className={`p-3 rounded-xl border flex flex-col items-center justify-center transition ${mood.includes(opt.label) ? "border-emerald-500 bg-white ring-2 ring-emerald-200 shadow-sm" : "border-gray-200 bg-white hover:bg-gray-50 text-gray-500"}`}>
+                          <span className="text-2xl mb-1">{opt.icon}</span>
+                          <span className={`text-sm font-bold ${mood.includes(opt.label) ? "text-emerald-700" : ""}`}>{opt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-gray-700 block mb-2">Megjegyzés a szakértőnek (Opcionális)</label>
+                    <textarea 
+                      rows="2" placeholder="Fájt a térdem a mai edzésen..."
+                      value={logNotes} onChange={(e) => setLogNotes(e.target.value)}
+                      className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-gray-900 text-sm shadow-sm resize-none"
+                    ></textarea>
+                  </div>
+                </div>
+
+                <button onClick={handleSaveLog} className="w-full bg-gray-900 text-white font-extrabold py-4 rounded-xl hover:bg-black transition shadow-xl text-lg">
+                  Mentés
                 </button>
               </div>
             </div>
@@ -1424,6 +1515,88 @@ export default function Home() {
                   Bezárás
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* ÚJ: KLIENS NAPLÓ RÉSZLETEK MODAL (MODERN)    */}
+        {/* ========================================== */}
+        {selectedLog && !isCoach && (
+          <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-md flex items-center justify-center z-[110] p-4">
+            <div className="bg-white p-8 sm:p-10 rounded-3xl shadow-2xl w-full max-w-md relative animate-fade-in-up border border-gray-100">
+              <button onClick={() => setSelectedLog(null)} className="absolute top-5 right-6 text-gray-400 hover:text-gray-800 transition-colors text-3xl font-light leading-none">×</button>
+
+              {/* --- Modern Fejléc --- */}
+              <div className="mb-8 pr-8">
+                <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1.5">Napi Összefoglaló</p>
+                <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">{formatDateLabel(selectedLog.date)}</h2>
+                <div className="mt-3">
+                  {(() => {
+                    // Kiszűrjük az emojit a mentett adatból, csak a szöveg kell
+                    const moodText = selectedLog.mood.substring(selectedLog.mood.indexOf(' ') + 1);
+                    const isGood = moodText.includes("Szuper") || moodText.includes("Jó");
+                    const isBad = moodText.includes("Rossz");
+                    const badgeClass = isGood ? "bg-emerald-50 text-emerald-700 border-emerald-200" : (isBad ? "bg-red-50 text-red-700 border-red-200" : "bg-yellow-50 text-yellow-700 border-yellow-200");
+                    return <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${badgeClass}`}>{moodText} hangulat</span>;
+                  })()}
+                </div>
+              </div>
+
+              {/* --- Letisztult Statisztika Rács --- */}
+              <div className="grid grid-cols-2 gap-3 mb-8">
+                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 transition-all hover:shadow-sm">
+                  <span className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Alvás</span>
+                  <span className="text-2xl font-extrabold text-gray-900">{selectedLog.sleep_hours}<span className="text-xs font-medium text-gray-500 ml-1">óra</span></span>
+                </div>
+                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 transition-all hover:shadow-sm">
+                  <span className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Stressz</span>
+                  <span className="text-2xl font-extrabold text-gray-900">{selectedLog.stress_level}<span className="text-xs font-medium text-gray-500 ml-1">/ 10</span></span>
+                </div>
+                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 transition-all hover:shadow-sm">
+                  <span className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Folyadék</span>
+                  <span className="text-2xl font-extrabold text-gray-900">{selectedLog.water_liters}<span className="text-xs font-medium text-gray-500 ml-1">L</span></span>
+                </div>
+                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 transition-all hover:shadow-sm">
+                  <span className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Edzésidő</span>
+                  <span className="text-2xl font-extrabold text-gray-900">{selectedLog.workout_minutes}<span className="text-xs font-medium text-gray-500 ml-1">perc</span></span>
+                </div>
+
+                {/* --- Opcionális adatok (Színezett kártyák, de emoji nélkül) --- */}
+                {selectedLog.workout_intensity > 0 && (
+                  <div className="bg-red-50/50 p-5 rounded-2xl border border-red-100 col-span-2 sm:col-span-1">
+                    <span className="block text-[10px] font-bold text-red-500 uppercase tracking-wider mb-1">Intenzitás</span>
+                    <span className="text-2xl font-extrabold text-red-700">{selectedLog.workout_intensity}<span className="text-xs font-medium text-red-500 ml-1">/ 10</span></span>
+                  </div>
+                )}
+                {selectedLog.steps && (
+                  <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 col-span-2 sm:col-span-1">
+                    <span className="block text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-1">Lépésszám</span>
+                    <span className="text-2xl font-extrabold text-blue-700">{selectedLog.steps}</span>
+                  </div>
+                )}
+                {selectedLog.weight && (
+                  <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 col-span-2">
+                    <span className="block text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Testsúly a méréskor</span>
+                    <span className="text-2xl font-extrabold text-emerald-700">{selectedLog.weight}<span className="text-xs font-medium text-emerald-600 ml-1">kg</span></span>
+                  </div>
+                )}
+              </div>
+
+              {/* --- Modern Megjegyzés Doboz --- */}
+              {selectedLog.notes && (
+                <div className="mb-8">
+                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Megjegyzés az edzőnek</h4>
+                  <div className="bg-gray-50 p-4 rounded-2xl border-l-4 border-blue-500 text-gray-700 text-sm leading-relaxed font-medium">
+                    {selectedLog.notes}
+                  </div>
+                </div>
+              )}
+
+              {/* --- Elegáns Gomb --- */}
+              <button onClick={() => setSelectedLog(null)} className="w-full py-3.5 bg-white border-2 border-gray-200 text-gray-900 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm">
+                Bezárás
+              </button>
             </div>
           </div>
         )}

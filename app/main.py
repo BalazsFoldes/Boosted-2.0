@@ -51,6 +51,9 @@ class DailyLog(Base):
     workout_minutes = Column(Integer, default=0)
     mood = Column(String)
     notes = Column(String, nullable=True)
+    workout_intensity = Column(Integer, default=0)
+    steps = Column(Integer, nullable=True)
+    weight = Column(Float, nullable=True)
 
 class WeeklyPlan(Base):
     __tablename__ = "weekly_plans"
@@ -101,6 +104,9 @@ class DailyLogCreate(BaseModel):
     workout_minutes: int
     mood: str
     notes: str = None
+    workout_intensity: int = 0
+    steps: int = None
+    weight: float = None
 
 class PlanUpdate(BaseModel):
     week_start_date: str 
@@ -224,7 +230,10 @@ def create_daily_log(log: DailyLogCreate, db: Session = Depends(get_db)):
     new_log = DailyLog(
         client_id=log.client_id, date=log_date, sleep_hours=log.sleep_hours,
         stress_level=log.stress_level, water_liters=log.water_liters, 
-        workout_minutes=log.workout_minutes, mood=log.mood, notes=log.notes
+        workout_minutes=log.workout_minutes, mood=log.mood, notes=log.notes,
+        workout_intensity=log.workout_intensity,
+        steps=log.steps,
+        weight=log.weight
     )
     db.add(new_log)
     db.commit()
@@ -234,7 +243,7 @@ def create_daily_log(log: DailyLogCreate, db: Session = Depends(get_db)):
 def get_client_logs(client_id: int, db: Session = Depends(get_db)):
     logs = db.query(DailyLog).filter(DailyLog.client_id == client_id).order_by(DailyLog.date.desc()).all()
     return [
-        {"id": l.id, "date": l.date.strftime("%Y-%m-%d"), "sleep_hours": l.sleep_hours, "stress_level": l.stress_level, "water_liters": l.water_liters, "workout_minutes": l.workout_minutes, "mood": l.mood, "notes": l.notes}
+        {"id": l.id, "date": l.date.strftime("%Y-%m-%d"), "sleep_hours": l.sleep_hours, "stress_level": l.stress_level, "water_liters": l.water_liters, "workout_minutes": l.workout_minutes, "mood": l.mood, "notes": l.notes, "workout_intensity": l.workout_intensity,"steps": l.steps,"weight": l.weight}
         for l in logs
     ]
 
