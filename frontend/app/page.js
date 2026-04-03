@@ -81,6 +81,8 @@ export default function Home() {
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [planDay, setPlanDay] = useState("Hétfő");
   const [planText, setPlanText] = useState("");
+  const [planStartTime, setPlanStartTime] = useState("");
+  const [planEndTime, setPlanEndTime] = useState("");
   
   const [coachNotes, setCoachNotes] = useState("");
 
@@ -178,7 +180,16 @@ export default function Home() {
   };
 
   const handleSaveDayPlan = async () => {
-    const updatedPlan = { ...modalWeeklyPlan, [planDay]: planText };
+    // Ha van idősáv, szépen hozzáfűzzük a szöveg elejére
+    let finalString = planText;
+    if (planStartTime && planEndTime) {
+      finalString = `🕒 ${planStartTime} - ${planEndTime}\n${finalString}`;
+    }
+
+    const activeObj = clientAllPlans.find(p => p.week_start === selectedWeek);
+    const currentPlan = activeObj && activeObj.plan_data ? JSON.parse(activeObj.plan_data) : {};
+
+    const updatedPlan = { ...currentPlan, [planDay]: finalString };
     const planDataStr = JSON.stringify(updatedPlan);
     
     let newPlans = [...clientAllPlans];
@@ -267,16 +278,28 @@ export default function Home() {
     setPlanDay("Hétfő");
   };
 
-  // JAVÍTÁS: Végtelen ciklus megszüntetése a renderelés során
+  // JAVÍTÁS: Végtelen ciklus megszüntetése és időpontok betöltése
   useEffect(() => {
     if (isPlanModalOpen) {
       const activeObj = clientAllPlans.find(p => p.week_start === selectedWeek);
       const currentPlan = activeObj && activeObj.plan_data ? JSON.parse(activeObj.plan_data) : {};
-      const newText = currentPlan[planDay] || "";
       
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      let rawText = currentPlan[planDay] || "";
+      let sTime = ""; let eTime = "";
+
+      // Ha találunk benne időpontot, kiszedjük a beviteli mezők számára
+      const timeMatch = rawText.match(/🕒 (\d{2}:\d{2}) - (\d{2}:\d{2})\n/);
+      if (timeMatch) {
+        sTime = timeMatch[1];
+        eTime = timeMatch[2];
+        rawText = rawText.replace(timeMatch[0], "");
+      }
+
+      setPlanStartTime(sTime);
+      setPlanEndTime(eTime);
+      
       setPlanText(prevText => {
-        if (prevText !== newText) return newText;
+        if (prevText !== rawText) return rawText;
         return prevText;
       });
     }
@@ -1056,6 +1079,26 @@ export default function Home() {
                 <div className="mt-8 md:mt-0">
                   <h2 className="text-2xl font-extrabold text-blue-600 mb-2">{planDay}</h2>
                   <p className="text-sm text-gray-500 mb-6">Írd meg a részletes edzéstervet vagy fókuszpontokat.</p>
+                </div>
+
+                {/* ÚJ: IDŐSÁV BEKÉRÉSE */}
+                <div className="mb-4">
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Idősáv (Mettől - Meddig)</label>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="time" 
+                      value={planStartTime} 
+                      onChange={e => setPlanStartTime(e.target.value)} 
+                      className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-gray-700 bg-white" 
+                    />
+                    <span className="font-bold text-gray-400">-</span>
+                    <input 
+                      type="time" 
+                      value={planEndTime} 
+                      onChange={e => setPlanEndTime(e.target.value)} 
+                      className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-gray-700 bg-white" 
+                    />
+                  </div>
                 </div>
                 
                 <div className="flex-1 flex flex-col mb-6 min-h-[300px]">
