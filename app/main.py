@@ -147,19 +147,32 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Hibás email vagy jelszó!")
     
     current_plan = "{}"
+    coach_name = None # Alapértelmezett
+
     if db_user.role == "CLIENT":
+        # Megkeressük az aktuális tervet
         monday = get_monday(datetime.now().date())
         plan = db.query(WeeklyPlan).filter(WeeklyPlan.client_id == db_user.id, WeeklyPlan.week_start_date == monday).first()
         if plan:
             current_plan = plan.plan_data
+        
+        # ÚJ: Megkeressük az edző nevét
+        if db_user.coach_id:
+            coach = db.query(User).filter(User.id == db_user.coach_id).first()
+            if coach:
+                coach_name = coach.full_name
 
     return {
-        "message": "Sikeres belépés!", "full_name": db_user.full_name, 
-        "coach_id": db_user.coach_id, "user_id": db_user.id,        
-        "role": db_user.role, "specialization": db_user.specialization,
+        "message": "Sikeres belépés!", 
+        "full_name": db_user.full_name, 
+        "coach_id": db_user.coach_id, 
+        "user_id": db_user.id,        
+        "role": db_user.role, 
+        "specialization": db_user.specialization,
         "weekly_plan": current_plan,
-        "total_boosts": db_user.total_boosts, # ÚJ: Visszaküldjük a Boost adatokat
-        "has_unseen_boost": db_user.has_unseen_boost
+        "total_boosts": db_user.total_boosts,
+        "has_unseen_boost": db_user.has_unseen_boost,
+        "coach_name": coach_name # ÚJ MEZŐ A VÁLASZBAN
     }
 
 @app.post("/api/invite")

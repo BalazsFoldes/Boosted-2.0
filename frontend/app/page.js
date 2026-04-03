@@ -22,6 +22,7 @@ export default function Home() {
   const [totalBoosts, setTotalBoosts] = useState(0);
   const [hasUnseenBoost, setHasUnseenBoost] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
+  const [assignedCoachName, setAssignedCoachName] = useState("");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [clientEmail, setClientEmail] = useState("");
@@ -42,6 +43,7 @@ export default function Home() {
   // ==========================================
   const [selectedLog, setSelectedLog] = useState(null);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [isCoachProfileModalOpen, setIsCoachProfileModalOpen] = useState(false);
   const [clientLogs, setClientLogs] = useState([]); 
   const [hasLoggedToday, setHasLoggedToday] = useState(false); 
   
@@ -423,27 +425,39 @@ export default function Home() {
     e.preventDefault();
     try {
       const res = await fetch("http://localhost:8000/api/login", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
         body: JSON.stringify({ email, password }),
       });
+
       if (res.ok) {
         const data = await res.json();
-        setLoggedInUser(data.full_name); setUserRole(data.role); setUserId(data.user_id); 
+        
+        // Alapadatok beállítása
+        setLoggedInUser(data.full_name); 
+        setUserRole(data.role); 
+        setUserId(data.user_id); 
         setUserSpecialization(data.specialization); 
         setCoachId(data.role === "COACH" ? data.user_id : data.coach_id); 
+        
+        // Kliens specifikus adatok
         if (data.role === "CLIENT") {
            setClientWeeklyPlan(data.weekly_plan ? JSON.parse(data.weekly_plan) : {});
-           // ÚJ: Gamifikációs adatok betöltése
-           setTotalBoosts(data.total_boosts);
-           setHasUnseenBoost(data.has_unseen_boost);
+           setTotalBoosts(data.total_boosts || 0);
+           setHasUnseenBoost(data.has_unseen_boost || false);
+           setAssignedCoachName(data.coach_name || "Szakértőd"); 
         }
-        setCurrentTab("overview"); setView("dashboard"); 
+
+        // Átváltás a Dashboardra
+        setCurrentTab("overview"); 
+        setView("dashboard"); 
       } else {
         const err = await res.json();
         alert("Hiba: " + err.detail);
       }
     } catch (error) {
-      alert("Szerver hiba.");
+      console.error("Login hiba:", error);
+      alert("Szerver hiba a bejelentkezés során.");
     }
   };
 
@@ -670,7 +684,7 @@ export default function Home() {
                   <p className="text-indigo-200">Még nincs elegendő adat az AI elemzés generálásához. A kliensnek legalább 1 naplót rögzítenie kell.</p>
                 ) : (
                   <p className="text-indigo-100 text-lg leading-relaxed">
-                    "A kliens stresszszintje az elmúlt napokban emelkedett trendet mutat, miközben az alvásminősége romlott (átlagosan 6 óra). Magas a kiégés és a sérülés kockázata. Javaslom a heti edzésintenzitás csökkentését 20%-kal, és több regenerációs blokk beiktatását."
+                    &quot;A kliens stresszszintje az elmúlt napokban emelkedett trendet mutat, miközben az alvásminősége romlott (átlagosan 6 óra). Magas a kiégés és a sérülés kockázata. Javaslom a heti edzésintenzitás csökkentését 20%-kal, és több regenerációs blokk beiktatását.&quot;
                   </p>
                 )}
                 <div className="mt-4 flex gap-2">
@@ -719,7 +733,7 @@ export default function Home() {
                             <span>{log.mood.split(' ')[0]}</span>
                           </div>
                           <div className="text-gray-500">Alvás: {log.sleep_hours}h | Stressz: {log.stress_level} | Edzés: {log.workout_minutes} perc</div>
-                          {log.notes && <div className="mt-2 text-gray-700 italic border-l-2 border-blue-400 pl-2">"{log.notes}"</div>}
+                          {log.notes && <div className="mt-2 text-gray-700 italic border-l-2 border-blue-400 pl-2">&quot;{log.notes}&quot;</div>}
                         </div>
                       ))}
                     </div>
@@ -1086,12 +1100,24 @@ export default function Home() {
                       </div>
                       {!isCoach && (
                         <div className="sm:col-span-2">
-                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kapcsolt Szakértő</label>
-                          <div className="flex items-center p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                            <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold mr-3">E</div>
-                            <div>
-                              <p className="font-bold text-gray-900">Saját Edződ Neve</p>
-                              <p className="text-xs text-gray-500">Ő látja a naplózott adataidat.</p>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Kapcsolt Szakértő</label>
+                          <div 
+                            onClick={() => setIsCoachProfileModalOpen(true)}
+                            className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-blue-50 hover:border-blue-200 transition-all cursor-pointer group shadow-sm"
+                          >
+                            <div className="flex items-center">
+                              <div className="h-14 w-14 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center justify-center font-extrabold text-2xl mr-4 shadow-md group-hover:scale-105 transition-transform">
+                                K
+                              </div>
+                              <div>
+                                  <p className="font-extrabold text-gray-900 text-lg group-hover:text-blue-700 transition-colors">
+                                    {assignedCoachName || "Szakértőd"}
+                                  </p>
+                                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-0.5">Személyi Edző</p>
+                                </div>
+                            </div>
+                            <div className="text-gray-400 group-hover:text-blue-600 transition-colors font-bold text-sm bg-white px-4 py-2 border border-gray-200 rounded-xl shadow-sm">
+                              Profil megtekintése
                             </div>
                           </div>
                         </div>
@@ -1597,6 +1623,81 @@ export default function Home() {
               <button onClick={() => setSelectedLog(null)} className="w-full py-3.5 bg-white border-2 border-gray-200 text-gray-900 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm">
                 Bezárás
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* ÚJ: PUBLIKUS EDZŐI PROFIL MODAL (KLIENSNEK)  */}
+        {/* ========================================== */}
+        {isCoachProfileModalOpen && !isCoach && (
+          <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-md flex items-center justify-center z-[120] p-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg relative animate-fade-in-up overflow-hidden border border-gray-100">
+              <button onClick={() => setIsCoachProfileModalOpen(false)} className="absolute top-5 right-6 text-white hover:text-gray-200 transition-colors text-3xl font-light leading-none z-20 drop-shadow-md">×</button>
+              
+              {/* Fejléc Háttér */}
+              <div className="h-32 bg-gradient-to-r from-blue-600 to-purple-600 w-full relative"></div>
+              
+              <div className="px-8 pb-8 relative -mt-12">
+                {/* Profilkép */}
+                <div className="flex justify-between items-end mb-4">
+                  <div className="h-24 w-24 bg-white rounded-full p-1.5 shadow-lg relative z-10">
+                    {/* JAVÍTÁS: Dinamikus kezdőbetű */}
+                    <div className="h-full w-full bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-4xl font-extrabold text-white">
+                      {assignedCoachName ? assignedCoachName.charAt(0).toUpperCase() : "E"}
+                    </div>
+                  </div>
+                  <div className="mb-2">
+                    <span className="bg-blue-50 text-blue-600 text-[10px] font-extrabold px-3 py-1.5 rounded-lg border border-blue-200 uppercase tracking-widest shadow-sm">Hitelesített Szakértő</span>
+                  </div>
+                </div>
+
+                {/* Név és Titulus */}
+                <div className="mb-8">
+                  {/* JAVÍTÁS: Dinamikus név */}
+                  <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">{assignedCoachName || "Szakértőd"}</h2>
+                  <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1.5">Személyi Edző</p>
+                </div>
+
+                {/* Szakmai bemutatkozás */}
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Rólam</h3>
+                    <p className="text-sm text-gray-700 leading-relaxed font-medium bg-gray-50 p-5 rounded-2xl border border-gray-100">
+                      Célom, hogy segítsek a klienseimnek elérni a legjobb formájukat, nemcsak fizikailag, hanem mentálisan is. Fő profilom a funkcionális edzés és az életmódváltás támogatása.
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col items-center text-center">
+                      <span className="text-2xl mb-1.5">⏳</span>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Tapasztalat</span>
+                      <span className="text-base font-extrabold text-gray-900">5+ év</span>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col items-center text-center">
+                      <span className="text-2xl mb-1.5">⭐️</span>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Értékelés</span>
+                      <span className="text-base font-extrabold text-gray-900">5.0 / 5.0</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Fő motivációm</h3>
+                    <div className="bg-gradient-to-r from-orange-50 to-pink-50 p-5 rounded-2xl border border-orange-100 flex items-start shadow-sm">
+                      <span className="text-2xl mr-4 mt-0.5">🔥</span>
+                      <p className="text-sm leading-relaxed font-bold italic text-gray-800">
+                        &quot;A legnagyobb siker számomra az, amikor egy kliensem rájön, hogy sokkal többre képes, mint amit valaha is el tudott képzelni magáról.&quot;
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-gray-100">
+                  <button onClick={() => setIsCoachProfileModalOpen(false)} className="w-full py-4 bg-white border-2 border-gray-200 text-gray-900 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm">
+                    Bezárás
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
