@@ -21,6 +21,7 @@ export default function Home() {
   // Gamifikációs állapotok a Kliensnél
   const [totalBoosts, setTotalBoosts] = useState(0);
   const [hasUnseenBoost, setHasUnseenBoost] = useState(false);
+  const [currentStreak, setCurrentStreak] = useState(0);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [clientEmail, setClientEmail] = useState("");
@@ -73,6 +74,40 @@ export default function Home() {
     return `${month}.${day}.`;
   };
 
+  const calculateStreak = (logs) => {
+    if (!logs || logs.length === 0) return 0;
+    
+    // 1. Kinyerjük a dátumokat és csökkenő sorrendbe rakjuk őket
+    const uniqueDates = [...new Set(logs.map(log => log.date))].sort((a, b) => new Date(b) - new Date(a));
+    
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const firstLogDate = new Date(uniqueDates[0]);
+    firstLogDate.setHours(0, 0, 0, 0);
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    // 2. Ha az utolsó naplózás nem ma és nem is tegnap volt, a széria megszakadt
+    if (firstLogDate.getTime() < yesterday.getTime()) return 0;
+
+    // 3. Visszafelé számolunk a legutolsó bejegyzéstől, amíg nincs megszakítás
+    let targetDate = firstLogDate;
+    for (let dateStr of uniqueDates) {
+      const d = new Date(dateStr);
+      d.setHours(0, 0, 0, 0);
+      if (d.getTime() === targetDate.getTime()) {
+        streak++;
+        targetDate.setDate(targetDate.getDate() - 1); // Ugrunk egy napot vissza
+      } else {
+        break; // Megszakadt a lánc
+      }
+    }
+    return streak;
+  };
+
   const currentRealMonday = getMonday(new Date()); 
 
   const [selectedWeek, setSelectedWeek] = useState(currentRealMonday); 
@@ -116,6 +151,7 @@ export default function Home() {
           setClientLogs(logs);
           const today = new Date().toISOString().split("T")[0];
           setHasLoggedToday(logs.some(log => log.date === today));
+          setCurrentStreak(calculateStreak(logs)); // ÚJ: Széria kiszámolása betöltéskor
         }
         // JAVÍTÁS: Lekérjük a kliens ÖSSZES edzéstervét is a lapozáshoz!
         const resPlans = await fetch(`http://localhost:8000/api/client/${userId}/plans`);
@@ -175,7 +211,9 @@ export default function Home() {
       if (res.ok) {
         setHasLoggedToday(true);
         setIsLogModalOpen(false);
-        setClientLogs([{...payload, id: Date.now()}, ...clientLogs]);
+        const newLogs = [{...payload, id: Date.now()}, ...clientLogs];
+        setClientLogs(newLogs);
+        setCurrentStreak(calculateStreak(newLogs));
         setSleepHours(7); setStressLevel(5); setWaterLiters(2.0); setWorkoutMinutes(0); setMood("😊 Szuper"); setLogNotes("");
       } else {
         const err = await res.json();
@@ -973,7 +1011,7 @@ export default function Home() {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">Jelenlegi széria</span>
-                          <span className="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">🔥 3 nap</span>
+                          <span className="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded flex items-center whitespace-nowrap shrink-0">🔥 {currentStreak} nap</span>
                         </div>
                       </div>
                     )}
