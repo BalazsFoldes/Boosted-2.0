@@ -79,6 +79,7 @@ export default function Home() {
   const [clientAllPlans, setClientAllPlans] = useState([]); 
   
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [isClientPlanModalOpen, setIsClientPlanModalOpen] = useState(false);
   const [planDay, setPlanDay] = useState("Hétfő");
   const [planText, setPlanText] = useState("");
   const [planStartTime, setPlanStartTime] = useState("");
@@ -116,8 +117,14 @@ export default function Home() {
           const today = new Date().toISOString().split("T")[0];
           setHasLoggedToday(logs.some(log => log.date === today));
         }
+        // JAVÍTÁS: Lekérjük a kliens ÖSSZES edzéstervét is a lapozáshoz!
+        const resPlans = await fetch(`http://localhost:8000/api/client/${userId}/plans`);
+        if (resPlans.ok) {
+          const plans = await resPlans.json();
+          setClientAllPlans(plans);
+        }
       } catch (error) {
-        console.error("Hiba a naplók lekérésekor:", error);
+        console.error("Hiba a naplók/tervek lekérésekor:", error);
       }
     };
 
@@ -836,24 +843,40 @@ export default function Home() {
                     </div>
                   </div>
 
+                  {/* KLIENS LÁTJA A JELENLEGI HETI TERVÉT DÁTUMOKKAL */}
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">Aktuális heti edzésterved</h3>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xl font-bold text-gray-800">Aktuális heti edzésterved</h3>
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider hidden sm:block">Kattints a napra a részletekért</span>
+                    </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-                      {daysOfWeek.map((day, idx) => (
-                        <div key={day} className={`p-4 rounded-xl border ${clientWeeklyPlan[day] ? "border-blue-200 bg-blue-50" : "border-gray-100 bg-gray-50"}`}>
-                          <span className={`text-xs font-bold uppercase block mb-1 ${clientWeeklyPlan[day] ? "text-blue-600" : "text-gray-400"}`}>
-                            {day}
-                          </span>
-                          <span className="text-xs text-gray-400 block mb-2">{getDayDateLabel(currentRealMonday, idx)}</span>
-                          <span className="text-sm text-gray-800 font-medium whitespace-pre-wrap">{clientWeeklyPlan[day] || "Pihenő"}</span>
-                        </div>
-                      ))}
+                      {daysOfWeek.map((day, idx) => {
+                        const hasPlan = !!clientWeeklyPlan[day];
+                        return (
+                          <div 
+                            key={day} 
+                            onClick={() => {
+                              setPlanDay(day); // Beállítjuk a kattintott napot
+                              setIsClientPlanModalOpen(true); // Megnyitjuk a nagy nézetet
+                            }}
+                            className={`p-4 rounded-xl border cursor-pointer hover:-translate-y-1 hover:shadow-md transition-all duration-200 ${hasPlan ? "border-blue-200 bg-blue-50/60" : "border-gray-100 bg-gray-50/50"}`}
+                          >
+                            <span className={`text-xs font-extrabold uppercase block mb-1 ${hasPlan ? "text-blue-600" : "text-gray-400"}`}>
+                              {day}
+                            </span>
+                            <span className="text-xs text-gray-500 font-medium block mb-2">{getDayDateLabel(currentRealMonday, idx)}</span>
+                            <div className="text-sm text-gray-800 font-medium whitespace-pre-wrap line-clamp-3">
+                              {clientWeeklyPlan[day] || "Pihenő"}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                     <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                      <h3 className="text-xl font-bold text-gray-800">Korábbi naplóid</h3>
+                      <h3 className="text-xl font-bold text-gray-800">Korábbi naplózásaid</h3>
                       {clientLogs.length > 0 && <span className="text-sm font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">{clientLogs.length} Napló rögzítve 🔥</span>}
                     </div>
                     {clientLogs.length === 0 ? (
@@ -1190,7 +1213,7 @@ export default function Home() {
                     className="flex-1 w-full border border-gray-300 p-5 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 focus:bg-white text-gray-900 text-sm resize-none transition"
                   ></textarea>
                 </div>
-                <button onClick={handleSaveDayPlan} className="w-full py-4 bg-blue-600 text-white font-extrabold rounded-xl hover:bg-blue-700 transition shadow-lg shrink-0 text-lg">
+                <button onClick={handleSaveDayPlan} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md shrink-0 text-sm">
                   Mentés
                 </button>
               </div>
@@ -1222,6 +1245,99 @@ export default function Home() {
              </div>
            </div>
          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* ÚJ: KLIENS RÉSZLETES EDZÉSTERV OLVASÓ MODAL  */}
+        {/* ========================================== */}
+        {isClientPlanModalOpen && !isCoach && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col md:flex-row gap-8 max-h-[90vh] overflow-hidden">
+              
+              {/* JAVÍTÁS: Az X gomb feljebb és jobbra tolva */}
+              <button onClick={() => setIsClientPlanModalOpen(false)} className="absolute top-3 right-4 text-gray-400 hover:text-gray-700 text-3xl font-bold z-20 leading-none">×</button>
+              
+              {/* Bal Oszlop: Hét léptetése és Napi Menü */}
+              <div className="flex-1 border-b md:border-b-0 md:border-r border-gray-200 pb-6 md:pb-0 md:pr-6 flex flex-col h-full">
+                <h2 className="text-2xl font-extrabold text-gray-900 mb-2 mt-2 md:mt-0">Heti Edzésterv</h2>
+                <p className="text-sm text-gray-500 mb-6">Nézd meg a feladataidat, vagy lapozz a hetek között!</p>
+                
+                <div className="flex items-center justify-between bg-blue-50 p-2 rounded-xl border border-blue-100 mb-6 shrink-0">
+                  <button onClick={() => changeWeek(-7)} className="w-10 h-10 rounded-lg bg-white shadow-sm text-blue-700 font-bold hover:bg-blue-100 transition">←</button>
+                  <span className="text-sm font-bold text-blue-800">{selectedWeek} hete</span>
+                  <button onClick={() => changeWeek(7)} className="w-10 h-10 rounded-lg bg-white shadow-sm text-blue-700 font-bold hover:bg-blue-100 transition">→</button>
+                </div>
+
+                <div className="space-y-3 overflow-y-auto pr-2 flex-1 pb-4">
+                  {daysOfWeek.map((day, idx) => {
+                    const isActive = planDay === day;
+                    // Megkeressük az adott hét tervét
+                    const activeObj = clientAllPlans.find(p => p.week_start === selectedWeek);
+                    const weekPlan = activeObj && activeObj.plan_data ? JSON.parse(activeObj.plan_data) : {};
+                    const hasPlan = !!weekPlan[day];
+                    
+                    return (
+                      <div 
+                        key={day} 
+                        onClick={() => setPlanDay(day)}
+                        className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                          isActive 
+                          ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200" 
+                          : "border-gray-200 bg-white hover:bg-gray-50 hover:border-blue-300"
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-1">
+                          <span className={`font-extrabold ${isActive ? "text-blue-700" : "text-gray-700"}`}>
+                            {day} <span className="text-gray-400 font-normal text-xs ml-1">({getDayDateLabel(selectedWeek, idx)})</span>
+                          </span>
+                          {isActive && <span className="text-blue-600 text-xs font-bold bg-blue-100 px-2 py-1 rounded">Kiválasztva</span>}
+                        </div>
+                        <span className={`block text-sm line-clamp-1 ${hasPlan ? "text-gray-800" : "text-gray-400 italic"}`}>
+                          {weekPlan[day] || "Pihenőnap"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Jobb Oszlop: Részletes olvasó nézet */}
+              <div className="flex-1 flex flex-col h-full bg-gray-50 rounded-2xl p-6 border border-gray-100 relative">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-extrabold text-blue-600 mb-2">{planDay}</h2>
+                  <p className="text-sm text-gray-500">Itt találod az edződ által írt részleteket.</p>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto pr-2 mb-4">
+                  {(() => {
+                    const activeObj = clientAllPlans.find(p => p.week_start === selectedWeek);
+                    const weekPlan = activeObj && activeObj.plan_data ? JSON.parse(activeObj.plan_data) : {};
+                    const currentDayText = weekPlan[planDay];
+
+                    if (!currentDayText) {
+                      return (
+                        <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                          <p className="font-bold text-lg">Erre a napra nincs program.</p>
+                          <p className="text-sm mt-1">Pihenj és regenerálódj!</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <p className="text-gray-800 text-base leading-relaxed whitespace-pre-wrap font-medium p-2">
+                        {currentDayText}
+                      </p>
+                    );
+                  })()}
+                </div>
+                
+                {/* JAVÍTÁS: Kisebb bezárás gomb, letolva az aljára (mt-auto) */}
+                <button onClick={() => setIsClientPlanModalOpen(false)} className="mt-auto w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition shadow-md shrink-0 text-sm">
+                  Bezárás
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ========================================== */}
