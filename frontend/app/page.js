@@ -18,7 +18,7 @@ export default function Home() {
   const [userSpecialization, setUserSpecialization] = useState("");
   const [clientWeeklyPlan, setClientWeeklyPlan] = useState({}); 
   
-  // ÚJ: Gamifikációs állapotok a Kliensnél
+  // Gamifikációs állapotok a Kliensnél
   const [totalBoosts, setTotalBoosts] = useState(0);
   const [hasUnseenBoost, setHasUnseenBoost] = useState(false);
 
@@ -198,7 +198,6 @@ export default function Home() {
       });
       if (res.ok) {
         alert(`${planDay} nap terve sikeresen elmentve!`);
-        setPlanText("");
       }
     } catch (error) {
       alert("Szerver hiba a terv mentésekor.");
@@ -214,6 +213,7 @@ export default function Home() {
       });
       if (res.ok) {
         setClients(clients.map(c => c.id === selectedClient.id ? { ...c, coach_notes: coachNotes } : c));
+        alert("Jegyzet sikeresen elmentve!");
       }
     } catch (error) {
       alert("Hiba a mentés során.");
@@ -265,14 +265,22 @@ export default function Home() {
     
     setSelectedWeek(newWeekStr);
     setPlanDay("Hétfő");
-    setPlanText("");
   };
 
+  // JAVÍTÁS: Végtelen ciklus megszüntetése a renderelés során
   useEffect(() => {
     if (isPlanModalOpen) {
-      setPlanText(modalWeeklyPlan[planDay] || "");
+      const activeObj = clientAllPlans.find(p => p.week_start === selectedWeek);
+      const currentPlan = activeObj && activeObj.plan_data ? JSON.parse(activeObj.plan_data) : {};
+      const newText = currentPlan[planDay] || "";
+      
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPlanText(prevText => {
+        if (prevText !== newText) return newText;
+        return prevText;
+      });
     }
-  }, [planDay, selectedWeek, isPlanModalOpen]);
+  }, [planDay, selectedWeek, isPlanModalOpen, clientAllPlans]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -508,7 +516,6 @@ export default function Home() {
                         <span className="inline-flex items-center text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-sm font-bold uppercase tracking-wide mt-1">
                           Aktív Kliens
                         </span>
-                        {/* ÚJ: Edző látja a kiosztott Boostokat */}
                         <span className="inline-flex items-center text-orange-700 bg-orange-50 border border-orange-200 px-3 py-1 rounded-full text-sm font-bold tracking-wide mt-1">
                           ⚡ Boosted {selectedClient.total_boosts || 0}
                         </span>
@@ -660,7 +667,7 @@ export default function Home() {
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                       <h3 className="text-lg font-bold text-gray-800 whitespace-nowrap">Saját klienseim ({clients.length})</h3>
-                      {/* ÚJ: Kereső mező */}
+                      {/* Kereső mező */}
                       <div className="w-full sm:w-82 relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <span className="text-gray-400"></span>
@@ -675,7 +682,6 @@ export default function Home() {
                       </div>
                     </div>
                     
-                    {/* Üres állapot, ha a keresés nem hoz találatot */}
                     {filteredClients.length === 0 ? (
                       <div className="p-8 text-center text-gray-500 text-sm font-medium">
                         Nincs találat a keresésre: &quot;{searchQuery}&quot;
@@ -725,7 +731,6 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* KLIENS LÁTJA A JELENLEGI HETI TERVÉT DÁTUMOKKAL */}
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                     <h3 className="text-xl font-bold text-gray-800 mb-4">Aktuális heti edzésterved</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -779,7 +784,7 @@ export default function Home() {
           {/* 2. PROFIL TAB                                */}
           {/* ========================================== */}
           {currentTab === "profile" && !selectedClient && (
-            <div className="animate-fade-in-up max-w-4xl mx-auto">
+            <div className="animate-fade-in-up max-w-6xl mx-auto">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6">
                 <div className={`h-32 bg-gradient-to-r ${themeGradient} w-full relative`}></div>
                 <div className="px-8 pb-8 flex flex-col sm:flex-row items-center sm:items-start relative -mt-16">
@@ -799,34 +804,57 @@ export default function Home() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                {/* --- STATISZTIKÁK DOBOZ JAVÍTVA EDZŐ ÉS KLIENS NÉZETRE --- */}
                 <div className="md:col-span-1 space-y-6">
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
                     <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Statisztikák</h3>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center pb-4 border-b border-gray-100">
-                        <span className="text-gray-600">Regisztráció</span>
-                        <span className="font-bold text-gray-900">2026. Március</span>
+                    
+                    {isCoach ? (
+                      /* EDZŐI STATISZTIKÁK */
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                          <span className="text-gray-600">Csatlakozás</span>
+                          <span className="font-bold text-gray-900">2026. Március</span>
+                        </div>
+                        <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                          <span className="text-gray-600">Aktív kliensek</span>
+                          <span className={`font-bold ${themeText} ${themeBg} px-3 py-1 rounded-lg`}>{clients.length} fő</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 pr-2">Kiosztott Boostok</span>
+                          <span className="font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-lg whitespace-nowrap shadow-sm">
+                            ⚡ {clients.reduce((sum, c) => sum + (c.total_boosts || 0), 0)} db
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center pb-4 border-b border-gray-100">
-                        <span className="text-gray-600">Naplózások</span>
-                        <span className={`font-bold ${themeText} ${themeBg} px-2 py-1 rounded`}>{clientLogs.length} alkalom</span>
-                      </div>
-                      {/* ÚJ: Büszkeségfal a kliensnek (Összegyűjtött Boostok) javított sortöréssel */}
-                      {!isCoach && (
+                    ) : (
+                      /* KLIENS STATISZTIKÁK */
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                          <span className="text-gray-600">Regisztráció</span>
+                          <span className="font-bold text-gray-900">2026. Március</span>
+                        </div>
+                        <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                          <span className="text-gray-600">Naplózások</span>
+                          <span className={`font-bold ${themeText} ${themeBg} px-2 py-1 rounded`}>{clientLogs.length} alkalom</span>
+                        </div>
                         <div className="flex justify-between items-center pb-4 border-b border-gray-100">
                           <span className="text-gray-600 pr-2">Összegyűjtött Boostok</span>
                           <span className="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded whitespace-nowrap">⚡ {totalBoosts} db</span>
                         </div>
-                      )}
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Jelenlegi széria</span>
-                        <span className="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">🔥 3 nap</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Jelenlegi széria</span>
+                          <span className="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">🔥 3 nap</span>
+                        </div>
                       </div>
-                    </div>
+                    )}
+
                   </div>
                 </div>
 
                 <div className="md:col-span-2 space-y-6">
+                  {/* --- FIÓK INFORMÁCIÓK DOBOZ --- */}
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
                     <h3 className="text-lg font-bold text-gray-900 mb-6">Fiók Információk</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -854,6 +882,45 @@ export default function Home() {
                       )}
                     </div>
                   </div>
+
+                  {/* ========================================== */}
+                  {/* FINOMÍTOTT: EDZŐI BEMUTATKOZÁS ÉS SZAKMAI PROFIL */}
+                  {/* ========================================== */}
+                  {isCoach && (
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 animate-fade-in-up">
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-bold text-gray-900">Bemutatkozás</h3>
+                        <span className="text-[10px] bg-blue-50 text-blue-600 font-bold px-2 py-1 rounded border border-blue-100 uppercase tracking-wider">Hamarosan szerkeszthető</span>
+                      </div>
+                      
+                      <div className="space-y-5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Rólam / Mivel foglalkozom</label>
+                          <p className="text-sm text-gray-700 bg-gray-50/50 p-4 rounded-xl border border-gray-100 leading-relaxed font-medium">
+                            Célom, hogy segítsek a klienseimnek elérni a legjobb formájukat, nemcsak fizikailag, hanem mentálisan is. Fő profilom a funkcionális edzés és az életmódváltás támogatása. Hiszem, hogy a fenntartható eredményekhez a tudatos táplálkozás és a következetesség elengedhetetlen.
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Szakmai tapasztalat</label>
+                          <p className="text-sm font-bold text-gray-800 bg-gray-50/50 p-3 rounded-xl border border-gray-100 inline-flex items-center">
+                            <span className="mr-2">⏳</span> Több mint 5 éve a szakmában
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Fő motivációm / Jeligém</label>
+                          <div className="bg-gradient-to-r from-orange-50/50 to-pink-50/50 p-4 rounded-xl border border-orange-100 flex items-start shadow-sm">
+                            <span className="text-xl mr-3 mt-0.5">🔥</span>
+                            <p className="text-sm leading-relaxed font-semibold italic text-gray-800">
+                              "A legnagyobb siker számomra az, amikor egy kliensem rájön, hogy sokkal többre képes, mint amit valaha is el tudott képzelni magáról."
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               </div>
             </div>
