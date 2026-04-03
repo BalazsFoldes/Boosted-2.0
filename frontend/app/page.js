@@ -1050,6 +1050,56 @@ export default function Home() {
                   </div>
 
                   {/* ========================================== */}
+                  {/* ÚJ: KLIENS FIZIKAI ADATOK ÉS CÉLOK           */}
+                  {/* ========================================== */}
+                  {!isCoach && (
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-bold text-gray-900">Adatok</h3>
+                        <span className="text-[10px] bg-blue-50 text-blue-600 font-bold px-2 py-1 rounded border border-blue-100 uppercase tracking-wider">Hamarosan szerkeszthető</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                        <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
+                          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Magasság</span>
+                          <span className="text-lg font-extrabold text-gray-900">175 cm</span>
+                        </div>
+                        <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
+                          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Jelenlegi Súly</span>
+                          <span className="text-lg font-extrabold text-gray-900">72 kg</span>
+                        </div>
+                        <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
+                          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Célsúly</span>
+                          <span className="text-lg font-extrabold text-gray-900">68 kg</span>
+                        </div>
+                        {/* BMI Kalkuláció (példa: 72 / (1.75 * 1.75) = 23.5) */}
+                        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center justify-center text-center shadow-sm">
+                          <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">BMI Index</span>
+                          <span className="text-lg font-extrabold text-emerald-700">23.5</span>
+                          <span className="text-[10px] font-bold text-emerald-600 mt-1">Normál testsúly</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Elsődleges Cél</label>
+                          <p className="text-sm font-bold text-gray-800 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+                            Állóképesség növelése és szálkásítás nyárra.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Étrend / Allergiák</label>
+                            <p className="text-sm font-medium text-gray-700 bg-gray-50/50 p-3 rounded-xl border border-gray-100 flex items-start">
+                              <span className="mr-2">🥛</span> Laktózérzékenység.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ========================================== */}
                   {/* FINOMÍTOTT: EDZŐI BEMUTATKOZÁS ÉS SZAKMAI PROFIL */}
                   {/* ========================================== */}
                   {isCoach && (
@@ -1079,7 +1129,7 @@ export default function Home() {
                           <div className="bg-gradient-to-r from-orange-50/50 to-pink-50/50 p-4 rounded-xl border border-orange-100 flex items-start shadow-sm">
                             <span className="text-xl mr-3 mt-0.5">🔥</span>
                             <p className="text-sm leading-relaxed font-semibold italic text-gray-800">
-                              "A legnagyobb siker számomra az, amikor egy kliensem rájön, hogy sokkal többre képes, mint amit valaha is el tudott képzelni magáról."
+                              &quot;A legnagyobb siker számomra az, amikor egy kliensem rájön, hogy sokkal többre képes, mint amit valaha is el tudott képzelni magáról.&quot;
                             </p>
                           </div>
                         </div>
