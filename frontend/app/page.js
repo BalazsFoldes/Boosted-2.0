@@ -1085,39 +1085,62 @@ export default function Home() {
 
                 <div className="md:col-span-2 space-y-6">
                   {/* --- FIÓK INFORMÁCIÓK DOBOZ --- */}
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 animate-fade-in-up">
                     <h3 className="text-lg font-bold text-gray-900 mb-6">Fiók Információk</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      
+                      {/* 1. Név */}
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Teljes Név</label>
-                        <p className="font-medium text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-100">{loggedInUser}</p>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Teljes Név</label>
+                        <p className="font-bold text-gray-900 bg-gray-50 p-4 rounded-xl border border-gray-100">{loggedInUser}</p>
                       </div>
+                      
+                      {/* 2. Szerepkör */}
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fiók Típusa</label>
-                        <p className={`font-medium p-3 rounded-lg border ${isCoach ? "text-purple-700 bg-purple-50 border-purple-100" : "text-emerald-700 bg-emerald-50 border-emerald-100"}`}>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Szerepkör</label>
+                        <p className={`font-bold p-4 rounded-xl border ${isCoach ? "text-purple-700 bg-purple-50 border-purple-100" : "text-emerald-700 bg-emerald-50 border-emerald-100"}`}>
                           {isCoach ? ` ${userSpecialization || "Edzői Fiók"}` : " Kliens Fiók"}
                         </p>
                       </div>
+
+                      {/* 3. ÚJ: Előfizetési csomag (Prémium dizájn) */}
+                      <div className={isCoach ? "sm:col-span-2" : ""}>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Előfizetési Csomag</label>
+                        <div className="flex items-center justify-between p-3.5 rounded-xl border border-yellow-500/20 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-md relative overflow-hidden group cursor-pointer transition-transform hover:-translate-y-0.5 h-[76px]">
+                           <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                           <div className="flex items-center gap-3 relative z-10">
+                             <div>
+                               <p className="font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500 leading-tight">Boosted PRO</p>
+                               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Aktív Prémium</p>
+                             </div>
+                           </div>
+                           <div className="relative z-10 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-lg text-yellow-300 border border-white/10 hover:bg-white/20 transition-colors">
+                             Kezelés
+                           </div>
+                        </div>
+                      </div>
+
+                      {/* 4. Kapcsolt Szakértő (Csak Kliensnek) - Szépen hozzáigazítva az előfizetés dobozhoz */}
                       {!isCoach && (
-                        <div className="sm:col-span-2">
-                          <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Kapcsolt Szakértő</label>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Kapcsolt Szakértő</label>
                           <div 
                             onClick={() => setIsCoachProfileModalOpen(true)}
-                            className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-blue-50 hover:border-blue-200 transition-all cursor-pointer group shadow-sm"
+                            className="flex items-center justify-between p-3.5 bg-white border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all cursor-pointer group shadow-sm h-[76px]"
                           >
                             <div className="flex items-center">
-                              <div className="h-14 w-14 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center justify-center font-extrabold text-2xl mr-4 shadow-md group-hover:scale-105 transition-transform">
-                                K
+                              <div className="h-11 w-11 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center justify-center font-extrabold text-xl mr-3 shadow-md group-hover:scale-105 transition-transform">
+                                {assignedCoachName?.charAt(0) || "E"}
                               </div>
                               <div>
-                                  <p className="font-extrabold text-gray-900 text-lg group-hover:text-blue-700 transition-colors">
+                                  <p className="font-extrabold text-gray-900 text-sm group-hover:text-blue-700 transition-colors line-clamp-1">
                                     {assignedCoachName || "Szakértőd"}
                                   </p>
-                                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-0.5">Személyi Edző</p>
+                                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-0.5">Személyi Edző</p>
                                 </div>
                             </div>
-                            <div className="text-gray-400 group-hover:text-blue-600 transition-colors font-bold text-sm bg-white px-4 py-2 border border-gray-200 rounded-xl shadow-sm">
-                              Profil megtekintése
+                            <div className="text-gray-300 group-hover:text-blue-600 transition-colors pr-2">
+                              <span className="text-xl font-bold">→</span>
                             </div>
                           </div>
                         </div>
@@ -1628,75 +1651,103 @@ export default function Home() {
         )}
 
         {/* ========================================== */}
-        {/* ÚJ: PUBLIKUS EDZŐI PROFIL MODAL (KLIENSNEK)  */}
+        {/* ÚJ: PUBLIKUS EDZŐI PROFIL MODAL (NAGYOBB & BŐVÍTETT) */}
         {/* ========================================== */}
         {isCoachProfileModalOpen && !isCoach && (
-          <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-md flex items-center justify-center z-[120] p-4">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg relative animate-fade-in-up overflow-hidden border border-gray-100">
-              <button onClick={() => setIsCoachProfileModalOpen(false)} className="absolute top-5 right-6 text-white hover:text-gray-200 transition-colors text-3xl font-light leading-none z-20 drop-shadow-md">×</button>
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md flex items-center justify-center z-[120] p-4 sm:p-6">
+            {/* JAVÍTÁS: max-w-5xl, hogy hatalmas és tágas legyen asztali nézetben */}
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up overflow-hidden border border-gray-200 flex flex-col max-h-[95vh]">
               
-              {/* Fejléc Háttér */}
-              <div className="h-32 bg-gradient-to-r from-blue-600 to-purple-600 w-full relative"></div>
+              {/* X gomb - Mobilon abszolút, asztalon is ott van */}
+              <button onClick={() => setIsCoachProfileModalOpen(false)} className="absolute top-4 right-4 md:top-6 md:right-8 text-gray-400 hover:text-gray-900 transition-colors text-3xl font-light leading-none z-20 bg-white/80 backdrop-blur-md rounded-full w-10 h-10 flex items-center justify-center hover:bg-gray-100 shadow-sm md:shadow-none md:bg-transparent">×</button>
               
-              <div className="px-8 pb-8 relative -mt-12">
-                {/* Profilkép */}
-                <div className="flex justify-between items-end mb-4">
-                  <div className="h-24 w-24 bg-white rounded-full p-1.5 shadow-lg relative z-10">
-                    {/* JAVÍTÁS: Dinamikus kezdőbetű */}
-                    <div className="h-full w-full bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-4xl font-extrabold text-white">
+              {/* Flex-col mobilon, de asztalon kettéválik (md:flex-row) */}
+              <div className="flex flex-col md:flex-row h-full overflow-y-auto md:overflow-hidden">
+                
+                {/* Bal Oldal: Profilkép és Alap infók */}
+                <div className="bg-gray-50 md:w-1/3 p-10 lg:p-12 flex flex-col items-center text-center border-b md:border-b-0 md:border-r border-gray-200 relative shrink-0">
+                  <div className="absolute inset-0 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none"></div>
+                  
+                  <div className="h-36 w-36 lg:h-40 lg:w-40 bg-white rounded-full p-2 shadow-xl relative z-10 mb-6">
+                    <div className="h-full w-full bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-6xl font-extrabold text-white">
                       {assignedCoachName ? assignedCoachName.charAt(0).toUpperCase() : "E"}
                     </div>
                   </div>
-                  <div className="mb-2">
-                    <span className="bg-blue-50 text-blue-600 text-[10px] font-extrabold px-3 py-1.5 rounded-lg border border-blue-200 uppercase tracking-widest shadow-sm">Hitelesített Szakértő</span>
-                  </div>
-                </div>
-
-                {/* Név és Titulus */}
-                <div className="mb-8">
-                  {/* JAVÍTÁS: Dinamikus név */}
-                  <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">{assignedCoachName || "Szakértőd"}</h2>
-                  <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1.5">Személyi Edző</p>
-                </div>
-
-                {/* Szakmai bemutatkozás */}
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Rólam</h3>
-                    <p className="text-sm text-gray-700 leading-relaxed font-medium bg-gray-50 p-5 rounded-2xl border border-gray-100">
-                      Célom, hogy segítsek a klienseimnek elérni a legjobb formájukat, nemcsak fizikailag, hanem mentálisan is. Fő profilom a funkcionális edzés és az életmódváltás támogatása.
-                    </p>
-                  </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col items-center text-center">
-                      <span className="text-2xl mb-1.5">⏳</span>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Tapasztalat</span>
-                      <span className="text-base font-extrabold text-gray-900">5+ év</span>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col items-center text-center">
-                      <span className="text-2xl mb-1.5">⭐️</span>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Értékelés</span>
-                      <span className="text-base font-extrabold text-gray-900">5.0 / 5.0</span>
+                  <div className="relative z-10 w-full">
+                    <span className="inline-block bg-blue-100 text-blue-700 text-[10px] lg:text-xs font-extrabold px-3 py-1.5 rounded-lg border border-blue-200 uppercase tracking-widest shadow-sm mb-4">Hitelesített Szakértő</span>
+                    <h2 className="text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight mb-2">{assignedCoachName || "Szakértőd"}</h2>
+                    <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Személyi Edző</p>
+                    
+                    <div className="mt-8 pt-8 border-t border-gray-200 w-full">
+                      <button onClick={() => setIsCoachProfileModalOpen(false)} className="w-full py-3.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-all text-sm shadow-sm hidden md:block">
+                        Vissza a profilomhoz
+                      </button>
                     </div>
                   </div>
+                </div>
 
-                  <div>
-                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Fő motivációm</h3>
-                    <div className="bg-gradient-to-r from-orange-50 to-pink-50 p-5 rounded-2xl border border-orange-100 flex items-start shadow-sm">
-                      <span className="text-2xl mr-4 mt-0.5">🔥</span>
-                      <p className="text-sm leading-relaxed font-bold italic text-gray-800">
-                        &quot;A legnagyobb siker számomra az, amikor egy kliensem rájön, hogy sokkal többre képes, mint amit valaha is el tudott képzelni magáról.&quot;
+                {/* Jobb Oldal: Részletek és Statisztikák */}
+                <div className="md:w-2/3 p-8 sm:p-10 lg:p-12 bg-white overflow-y-auto">
+                  <div className="space-y-10 max-w-3xl mx-auto">
+                    
+                    {/* Leírás */}
+                    <div>
+                      <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+                         Szakmai Bemutatkozás
+                      </h3>
+                      <p className="text-sm sm:text-base text-gray-600 leading-relaxed font-medium bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                        Célom, hogy segítsek a klienseimnek elérni a legjobb formájukat, nemcsak fizikailag, hanem mentálisan is. Fő profilom a funkcionális edzés és az életmódváltás támogatása. Az edzéseimen a precíz kivitelezésre és a fenntartható fejlődésre fókuszálunk, mert hiszem, hogy a minőség mindig megelőzi a mennyiséget.
                       </p>
                     </div>
+                    
+                    {/* ÚJ: 3 Oszlopos Statisztika (Tapasztalat, Kliensek, Értékelés) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="bg-blue-50/30 p-6 rounded-2xl border border-blue-100 flex flex-col items-center sm:items-start justify-center hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-2 mb-2">
+                           <span className="text-[10px] lg:text-xs font-bold text-blue-600 uppercase tracking-wider">Tapasztalat</span>
+                        </div>
+                        <span className="text-3xl font-extrabold text-gray-900">5+ év</span>
+                      </div>
+                      
+                      <div className="bg-emerald-50/30 p-6 rounded-2xl border border-emerald-100 flex flex-col items-center sm:items-start justify-center hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-2 mb-2">
+                           <span className="text-[10px] lg:text-xs font-bold text-emerald-600 uppercase tracking-wider">Kliensek</span>
+                        </div>
+                        <span className="text-3xl font-extrabold text-gray-900">40+</span>
+                      </div>
+
+                      <div className="bg-orange-50/30 p-6 rounded-2xl border border-orange-100 flex flex-col items-center sm:items-start justify-center hover:shadow-md transition-shadow">
+                         <div className="flex items-center gap-2 mb-2">
+                           <span className="text-[10px] lg:text-xs font-bold text-orange-600 uppercase tracking-wider">Értékelés</span>
+                        </div>
+                        <span className="text-3xl font-extrabold text-gray-900">5.0 <span className="text-base font-medium text-gray-400">/ 5</span></span>
+                      </div>
+                    </div>
+
+                    {/* Motiváció */}
+                    <div>
+                      <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+                         Fő motivációm
+                      </h3>
+                      <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl flex items-start shadow-xl relative overflow-hidden">
+                        <div className="absolute right-0 top-0 text-9xl opacity-5 -mt-6 -mr-6 pointer-events-none transform rotate-12">🔥</div>
+                        <span className="text-3xl mr-4 mt-1 opacity-50 text-white">"</span>
+                        <p className="text-sm sm:text-base leading-relaxed font-medium italic text-gray-100 relative z-10 pr-4">
+                          A legnagyobb siker számomra az, amikor egy kliensem rájön, hogy sokkal többre képes, mint amit valaha is el tudott képzelni magáról. A határaink csak ott vannak, ahová mi magunk húzzuk meg őket.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Bezárás gomb csak mobilon */}
+                    <div className="pt-4 md:hidden">
+                      <button onClick={() => setIsCoachProfileModalOpen(false)} className="w-full py-4 bg-gray-900 text-white font-extrabold rounded-xl hover:bg-black transition-all text-sm shadow-lg">
+                        Bezárás
+                      </button>
+                    </div>
                   </div>
                 </div>
-
-                <div className="mt-8 pt-6 border-t border-gray-100">
-                  <button onClick={() => setIsCoachProfileModalOpen(false)} className="w-full py-4 bg-white border-2 border-gray-200 text-gray-900 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm">
-                    Bezárás
-                  </button>
-                </div>
+                
               </div>
             </div>
           </div>
