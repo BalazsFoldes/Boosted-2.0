@@ -8,10 +8,24 @@ export default function Home() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState(""); // ÚJ
+  const [lastName, setLastName] = useState("");   // ÚJ
   const [specialization, setSpecialization] = useState("Személyi Edző");
+
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileData, setProfileData] = useState({
+    firstName: "",
+    lastName: "",
+    height: "",
+    currentWeight: "",
+    goalWeight: "",
+    primaryGoal: "",
+    dietAllergies: ""
+  });
   
-  const [loggedInUser, setLoggedInUser] = useState(""); 
+  const [loggedInFirstName, setLoggedInFirstName] = useState(""); 
+  const [loggedInLastName, setLoggedInLastName] = useState(""); 
+  const loggedInUser = `${loggedInLastName} ${loggedInFirstName}`;
   const [coachId, setCoachId] = useState(null); 
   const [userRole, setUserRole] = useState(""); 
   const [userId, setUserId] = useState(null); 
@@ -34,7 +48,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredClients = clients.filter(client => 
-    client.full_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    `${client.last_name} ${client.first_name}`.toLowerCase().includes(searchQuery.toLowerCase()) || 
     client.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -185,6 +199,37 @@ export default function Home() {
       }
     }
   }, [view, userRole, coachId, userId]);
+
+  const handleUpdateProfile = async () => {
+    try {
+      const payload = {
+        first_name: profileData.firstName,
+        last_name: profileData.lastName,
+        height: profileData.height ? parseInt(profileData.height) : null,
+        current_weight: profileData.currentWeight ? parseFloat(profileData.currentWeight.toString().replace(',', '.')) : null,
+        goal_weight: profileData.goalWeight ? parseFloat(profileData.goalWeight.toString().replace(',', '.')) : null,
+        primary_goal: profileData.primaryGoal,
+        diet_allergies: profileData.dietAllergies
+      };
+
+      const res = await fetch(`http://localhost:8000/api/user/${userId}/profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        alert("Profil sikeresen frissítve!");
+        setIsEditingProfile(false);
+        setLoggedInFirstName(profileData.firstName);
+        setLoggedInLastName(profileData.lastName);
+      } else {
+        alert("Hiba a profil mentésekor.");
+      }
+    } catch (error) {
+      alert("Szerver hiba.");
+    }
+  };
 
   const handleViewClient = async (client) => {
     setSelectedClient(client);
@@ -392,6 +437,7 @@ export default function Home() {
         rawText = rawText.replace(timeMatch[0], "");
       }
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPlanStartTime(sTime);
       setPlanEndTime(eTime);
       
@@ -407,7 +453,7 @@ export default function Home() {
     try {
       const res = await fetch("http://localhost:8000/api/register", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, full_name: fullName, specialization }),
+        body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, specialization }),
       });
       if (res.ok) {
         alert("Sikeres regisztráció! Kérjük, jelentkezz be.");
@@ -434,11 +480,22 @@ export default function Home() {
         const data = await res.json();
         
         // Alapadatok beállítása
-        setLoggedInUser(data.full_name); 
+        setLoggedInFirstName(data.first_name); 
+        setLoggedInLastName(data.last_name); 
         setUserRole(data.role); 
         setUserId(data.user_id); 
         setUserSpecialization(data.specialization); 
-        setCoachId(data.role === "COACH" ? data.user_id : data.coach_id); 
+        setCoachId(data.role === "COACH" ? data.user_id : data.coach_id);
+
+        setProfileData({
+          firstName: data.first_name || "",
+          lastName: data.last_name || "",
+          height: data.height || "",
+          currentWeight: data.current_weight || "",
+          goalWeight: data.goal_weight || "",
+          primaryGoal: data.primary_goal || "",
+          dietAllergies: data.diet_allergies || ""
+        });
         
         // Kliens specifikus adatok
         if (data.role === "CLIENT") {
@@ -481,11 +538,19 @@ export default function Home() {
   };
 
   const handleLogout = () => {
-    setLoggedInUser(""); setCoachId(null); setUserRole(""); setUserId(null); setUserSpecialization("");
+    // 1. Alapadatok törlése (itt volt a hiba, kivettük a setLoggedInUser-t)
+    setCoachId(null); setUserRole(""); setUserId(null); setUserSpecialization("");
+    
+    // 2. Kliens adatok törlése
     setClients([]); setClientLogs([]); setHasLoggedToday(false); setSelectedClient(null); setSelectedClientLogs([]);
     setClientAllPlans([]); setClientWeeklyPlan({}); setCoachNotes("");
     setTotalBoosts(0); setHasUnseenBoost(false);
-    setEmail(""); setPassword(""); setFullName(""); setView("landing");
+    
+    // 3. Űrlap és nézet visszaállítása
+    setEmail(""); setPassword(""); setView("landing");
+    
+    // 4. Név és profil adatok törlése
+    setFirstName(""); setLastName(""); setLoggedInFirstName(""); setLoggedInLastName(""); setIsEditingProfile(false);
   };
 
   const formatDateLabel = (dateString) => {
@@ -541,7 +606,13 @@ export default function Home() {
         <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border-t-4 border-blue-600">
           <h2 className="text-3xl font-extrabold mb-2 text-gray-900 text-center tracking-tight">Szakértői Fiók Létrehozása</h2>
           <form onSubmit={handleRegister} className="space-y-5 mt-8">
-            <div><label className="block text-sm font-semibold text-gray-700 mb-1">Teljes Név</label><input type="text" required className={inputStyle} value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Név</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-xs font-semibold text-gray-500 mb-1">Vezetéknév</label><input type="text" required className={inputStyle} value={lastName} onChange={(e) => setLastName(e.target.value)} /></div>
+                <div><label className="block text-xs font-semibold text-gray-500 mb-1">Keresztnév</label><input type="text" required className={inputStyle} value={firstName} onChange={(e) => setFirstName(e.target.value)} /></div>
+              </div>
+            </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Szakma / Terület</label>
               <select className={`${inputStyle} cursor-pointer`} value={specialization} onChange={(e) => setSpecialization(e.target.value)}>
@@ -636,11 +707,11 @@ export default function Home() {
                 
                 <div className="flex items-start gap-6 flex-1 w-full">
                   <div className="h-24 w-24 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-4xl font-extrabold shrink-0 shadow-inner">
-                    {selectedClient.full_name.charAt(0).toUpperCase()}
+                    {selectedClient.last_name.charAt(0).toUpperCase()}
                   </div>
                   
                   <div className="space-y-3 mt-2">
-                    <h1 className="text-3xl font-extrabold text-gray-900 leading-none">{selectedClient.full_name}</h1>
+                    <h1 className="text-3xl font-extrabold text-gray-900 leading-none">{selectedClient.last_name} {selectedClient.first_name}</h1>
                     <div className="flex flex-col gap-2 text-base text-gray-600 font-medium">
                       <span className="flex items-center">{selectedClient.email}</span>
                       <span className="flex items-center">Csatlakozott: 2026. Március</span>
@@ -775,7 +846,7 @@ export default function Home() {
             <div className="animate-fade-in-up">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
                 <div>
-                  <h1 className="text-3xl font-extrabold text-gray-900">Szia, {loggedInUser}!</h1>
+                  <h1 className="text-3xl font-extrabold text-gray-900">Szia, {loggedInFirstName}!</h1>
                   <p className="text-gray-500 mt-2">
                     {isCoach ? "Itt találod majd a klienseid adatait és az elemzéseket." : "Itt rögzítheted a napi adataidat a szakértőd számára."}
                   </p>
@@ -903,10 +974,10 @@ export default function Home() {
                             <li key={client.id} className="p-6 sm:px-8 flex items-center justify-between hover:bg-blue-50/30 transition cursor-pointer group" onClick={() => handleViewClient(client)}>
                               <div className="flex items-center">
                                 <div className="h-14 w-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-extrabold text-2xl mr-5 shrink-0 group-hover:scale-105 transition-transform shadow-sm">
-                                  {client.full_name.charAt(0).toUpperCase()}
+                                  {client.last_name ? client.last_name.charAt(0).toUpperCase() : "K"}
                                 </div>
                                 <div>
-                                  <p className="text-lg font-extrabold text-gray-900 mb-0.5">{client.full_name}</p>
+                                  <p className="text-lg font-extrabold text-gray-900 mb-0.5">{client.last_name} {client.first_name}</p>
                                   <p className="text-sm text-gray-500 font-medium">{client.email}</p>
                                 </div>
                               </div>
@@ -958,8 +1029,8 @@ export default function Home() {
                           <div 
                             key={day} 
                             onClick={() => {
-                              setPlanDay(day); // Beállítjuk a kattintott napot
-                              setIsClientPlanModalOpen(true); // Megnyitjuk a nagy nézetet
+                              setPlanDay(day);
+                              setIsClientPlanModalOpen(true); 
                             }}
                             className={`p-4 rounded-xl border cursor-pointer hover:-translate-y-1 hover:shadow-md transition-all duration-200 ${hasPlan ? "border-blue-200 bg-blue-50/60" : "border-gray-100 bg-gray-50/50"}`}
                           >
@@ -1019,17 +1090,42 @@ export default function Home() {
                 <div className={`h-32 bg-gradient-to-r ${themeGradient} w-full relative`}></div>
                 <div className="px-8 pb-8 flex flex-col sm:flex-row items-center sm:items-start relative -mt-16">
                   <div className="h-32 w-32 bg-white rounded-full p-1 shadow-lg shrink-0 relative z-10">
-                    <div className="h-full w-full bg-gray-100 rounded-full flex items-center justify-center text-5xl font-extrabold text-gray-400">{loggedInUser.charAt(0).toUpperCase()}</div>
+                    <div className="h-full w-full bg-gray-100 rounded-full flex items-center justify-center text-5xl font-extrabold text-gray-400">
+                      {loggedInLastName ? loggedInLastName.charAt(0).toUpperCase() : "U"}
+                    </div>
                   </div>
                   <div className="mt-4 sm:mt-20 sm:ml-6 text-center sm:text-left flex-1">
                     <h2 className="text-3xl font-extrabold text-gray-900">{loggedInUser}</h2>
                     <p className="text-gray-500 font-medium">{isCoach ? (userSpecialization || "Személyi Edző") : "Boosted Kliens"}</p>
                   </div>
+                  
+                  {/* --- Szerkesztés és Mentés/Mégse gombok --- */}
                   <div className="mt-6 sm:mt-20 sm:ml-auto">
-                    <button className="px-6 py-2 bg-gray-100 text-gray-800 font-bold rounded-lg hover:bg-gray-200 transition text-sm">
-                      Profil Szerkesztése
-                    </button>
+                    {isEditingProfile ? (
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => setIsEditingProfile(false)} 
+                          className="px-6 py-2 bg-gray-200 text-gray-800 font-bold rounded-lg hover:bg-gray-300 transition text-sm"
+                        >
+                          Mégse
+                        </button>
+                        <button 
+                          onClick={handleUpdateProfile} 
+                          className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition text-sm shadow-md"
+                        >
+                          Mentés
+                        </button>
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => setIsEditingProfile(true)} 
+                        className="px-6 py-2 bg-gray-100 text-gray-800 font-bold rounded-lg hover:bg-gray-200 transition text-sm"
+                      >
+                        Profil Szerkesztése
+                      </button>
+                    )}
                   </div>
+
                 </div>
               </div>
 
@@ -1079,7 +1175,6 @@ export default function Home() {
                         </div>
                       </div>
                     )}
-
                   </div>
                 </div>
 
@@ -1090,37 +1185,34 @@ export default function Home() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       
                       {/* 1. Név */}
-                      <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Teljes Név</label>
-                        <p className="font-bold text-gray-900 bg-gray-50 p-4 rounded-xl border border-gray-100">{loggedInUser}</p>
+                      <div className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Vezetéknév</label>
+                          {isEditingProfile ? (
+                            <input type="text" className={inputStyle} value={profileData.lastName} onChange={(e) => setProfileData({...profileData, lastName: e.target.value})} />
+                          ) : (
+                            <p className="font-bold text-gray-900 bg-gray-50 p-4 rounded-xl border border-gray-100">{profileData.lastName}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Keresztnév</label>
+                          {isEditingProfile ? (
+                            <input type="text" className={inputStyle} value={profileData.firstName} onChange={(e) => setProfileData({...profileData, firstName: e.target.value})} />
+                          ) : (
+                            <p className="font-bold text-gray-900 bg-gray-50 p-4 rounded-xl border border-gray-100">{profileData.firstName}</p>
+                          )}
+                        </div>
                       </div>
                       
-                      {/* 2. Szerepkör */}
+                      {/* 2. Szerepkör (Egy oszlop, beállított magassággal a szimmetriáért) */}
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Szerepkör</label>
-                        <p className={`font-bold p-4 rounded-xl border ${isCoach ? "text-purple-700 bg-purple-50 border-purple-100" : "text-emerald-700 bg-emerald-50 border-emerald-100"}`}>
+                        <div className={`font-bold px-4 rounded-xl border flex items-center h-[56px] ${isCoach ? "text-purple-700 bg-purple-50 border-purple-100" : "text-emerald-700 bg-emerald-50 border-emerald-100"}`}>
                           {isCoach ? ` ${userSpecialization || "Edzői Fiók"}` : " Kliens Fiók"}
-                        </p>
-                      </div>
-
-                      {/* 3. ÚJ: Előfizetési csomag (Prémium dizájn) */}
-                      <div className={isCoach ? "sm:col-span-2" : ""}>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Előfizetési Csomag</label>
-                        <div className="flex items-center justify-between p-3.5 rounded-xl border border-yellow-500/20 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-md relative overflow-hidden group cursor-pointer transition-transform hover:-translate-y-0.5 h-[76px]">
-                           <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                           <div className="flex items-center gap-3 relative z-10">
-                             <div>
-                               <p className="font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500 leading-tight">Boosted PRO</p>
-                               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Aktív Prémium</p>
-                             </div>
-                           </div>
-                           <div className="relative z-10 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-lg text-yellow-300 border border-white/10 hover:bg-white/20 transition-colors">
-                             Kezelés
-                           </div>
                         </div>
                       </div>
 
-                      {/* 4. Kapcsolt Szakértő (Csak Kliensnek) - Szépen hozzáigazítva az előfizetés dobozhoz */}
+                      {/* 3. Kapcsolt Szakértő (Csak Kliensnek - A Szerepkör mellé kerül) */}
                       {!isCoach && (
                         <div>
                           <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Kapcsolt Szakértő</label>
@@ -1145,6 +1237,24 @@ export default function Home() {
                           </div>
                         </div>
                       )}
+
+                      {/* 4. Előfizetési csomag (Teljes szélesség alul) */}
+                      <div className="col-span-1 sm:col-span-2">
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Előfizetési Csomag</label>
+                        <div className="flex items-center justify-between p-3.5 rounded-xl border border-yellow-500/20 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-md relative overflow-hidden group cursor-pointer transition-transform hover:-translate-y-0.5 h-[76px]">
+                           <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                           <div className="flex items-center gap-3 relative z-10">
+                             <div>
+                               <p className="font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500 leading-tight">Boosted PRO</p>
+                               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Aktív Prémium</p>
+                             </div>
+                           </div>
+                           <div className="relative z-10 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-lg text-yellow-300 border border-white/10 hover:bg-white/20 transition-colors">
+                             Kezelés
+                           </div>
+                        </div>
+                      </div>
+
                     </div>
                   </div>
 
@@ -1152,50 +1262,69 @@ export default function Home() {
                   {/* ÚJ: KLIENS FIZIKAI ADATOK ÉS CÉLOK           */}
                   {/* ========================================== */}
                   {!isCoach && (
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-                      <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-bold text-gray-900">Adatok</h3>
-                        <span className="text-[10px] bg-blue-50 text-blue-600 font-bold px-2 py-1 rounded border border-blue-100 uppercase tracking-wider">Hamarosan szerkeszthető</span>
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-lg font-bold text-gray-900">Adatok</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                      {/* Magasság */}
+                      <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Magasság</span>
+                        {isEditingProfile ? (
+                          <div className="flex items-center"><input type="number" className="w-16 text-center border p-1 rounded font-bold" value={profileData.height} onChange={(e) => setProfileData({...profileData, height: e.target.value})} /> <span className="ml-1 text-sm font-bold">cm</span></div>
+                        ) : (
+                          <span className="text-lg font-extrabold text-gray-900">{profileData.height || "-"} cm</span>
+                        )}
                       </div>
-                      
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
-                          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Magasság</span>
-                          <span className="text-lg font-extrabold text-gray-900">175 cm</span>
-                        </div>
-                        <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
-                          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Jelenlegi Súly</span>
-                          <span className="text-lg font-extrabold text-gray-900">72 kg</span>
-                        </div>
-                        <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
-                          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Célsúly</span>
-                          <span className="text-lg font-extrabold text-gray-900">68 kg</span>
-                        </div>
-                        {/* BMI Kalkuláció (példa: 72 / (1.75 * 1.75) = 23.5) */}
-                        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center justify-center text-center shadow-sm">
-                          <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">BMI Index</span>
-                          <span className="text-lg font-extrabold text-emerald-700">23.5</span>
-                          <span className="text-[10px] font-bold text-emerald-600 mt-1">Normál testsúly</span>
-                        </div>
+                      {/* Jelenlegi Súly */}
+                      <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Jelenlegi Súly</span>
+                        {isEditingProfile ? (
+                          <div className="flex items-center"><input type="number" step="0.1" className="w-16 text-center border p-1 rounded font-bold" value={profileData.currentWeight} onChange={(e) => setProfileData({...profileData, currentWeight: e.target.value})} /> <span className="ml-1 text-sm font-bold">kg</span></div>
+                        ) : (
+                          <span className="text-lg font-extrabold text-gray-900">{profileData.currentWeight || "-"} kg</span>
+                        )}
                       </div>
+                      {/* Célsúly */}
+                      <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Célsúly</span>
+                        {isEditingProfile ? (
+                          <div className="flex items-center"><input type="number" step="0.1" className="w-16 text-center border p-1 rounded font-bold" value={profileData.goalWeight} onChange={(e) => setProfileData({...profileData, goalWeight: e.target.value})} /> <span className="ml-1 text-sm font-bold">kg</span></div>
+                        ) : (
+                          <span className="text-lg font-extrabold text-gray-900">{profileData.goalWeight || "-"} kg</span>
+                        )}
+                      </div>
+                      {/* BMI Kalkuláció */}
+                      <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center justify-center text-center shadow-sm">
+                        <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">BMI Index</span>
+                        <span className="text-lg font-extrabold text-emerald-700">
+                          {profileData.height && profileData.currentWeight ? (profileData.currentWeight / ((profileData.height/100) * (profileData.height/100))).toFixed(1) : "-"}
+                        </span>
+                      </div>
+                    </div>
 
-                      <div className="space-y-4">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Elsődleges Cél</label>
+                        {isEditingProfile ? (
+                          <textarea rows="2" className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-gray-800 resize-none" value={profileData.primaryGoal} onChange={(e) => setProfileData({...profileData, primaryGoal: e.target.value})} />
+                        ) : (
+                          <p className="text-sm font-bold text-gray-800 bg-gray-50/50 p-3 rounded-xl border border-gray-100 min-h-[46px]">{profileData.primaryGoal || "Még nincs megadva."}</p>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Elsődleges Cél</label>
-                          <p className="text-sm font-bold text-gray-800 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
-                            Állóképesség növelése és szálkásítás nyárra.
-                          </p>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Étrend / Allergiák</label>
-                            <p className="text-sm font-medium text-gray-700 bg-gray-50/50 p-3 rounded-xl border border-gray-100 flex items-start">
-                              <span className="mr-2">🥛</span> Laktózérzékenység.
-                            </p>
-                          </div>
+                          <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Étrend / Allergiák</label>
+                          {isEditingProfile ? (
+                            <input type="text" className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-gray-800" value={profileData.dietAllergies} onChange={(e) => setProfileData({...profileData, dietAllergies: e.target.value})} />
+                          ) : (
+                            <p className="text-sm font-medium text-gray-700 bg-gray-50/50 p-3 rounded-xl border border-gray-100 min-h-[46px]">{profileData.dietAllergies || "Nincs megadva."}</p>
+                          )}
                         </div>
                       </div>
                     </div>
+                  </div>
                   )}
 
                   {/* ========================================== */}
@@ -1482,10 +1611,8 @@ export default function Home() {
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col md:flex-row gap-8 max-h-[90vh] overflow-hidden">
               
-              {/* JAVÍTÁS: Az X gomb feljebb és jobbra tolva */}
               <button onClick={() => setIsClientPlanModalOpen(false)} className="absolute top-3 right-4 text-gray-400 hover:text-gray-700 text-3xl font-bold z-20 leading-none">×</button>
               
-              {/* Bal Oszlop: Hét léptetése és Napi Menü */}
               <div className="flex-1 border-b md:border-b-0 md:border-r border-gray-200 pb-6 md:pb-0 md:pr-6 flex flex-col h-full">
                 <h2 className="text-2xl font-extrabold text-gray-900 mb-2 mt-2 md:mt-0">Heti Edzésterv</h2>
                 <p className="text-sm text-gray-500 mb-6">Nézd meg a feladataidat, vagy lapozz a hetek között!</p>
@@ -1499,7 +1626,6 @@ export default function Home() {
                 <div className="space-y-3 overflow-y-auto pr-2 flex-1 pb-4">
                   {daysOfWeek.map((day, idx) => {
                     const isActive = planDay === day;
-                    // Megkeressük az adott hét tervét
                     const activeObj = clientAllPlans.find(p => p.week_start === selectedWeek);
                     const weekPlan = activeObj && activeObj.plan_data ? JSON.parse(activeObj.plan_data) : {};
                     const hasPlan = !!weekPlan[day];
@@ -1529,7 +1655,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Jobb Oszlop: Részletes olvasó nézet */}
               <div className="flex-1 flex flex-col h-full bg-gray-50 rounded-2xl p-6 border border-gray-100 relative">
                 <div className="mb-6">
                   <h2 className="text-2xl font-extrabold text-blue-600 mb-2">{planDay}</h2>
@@ -1559,7 +1684,6 @@ export default function Home() {
                   })()}
                 </div>
                 
-                {/* JAVÍTÁS: Kisebb bezárás gomb, letolva az aljára (mt-auto) */}
                 <button onClick={() => setIsClientPlanModalOpen(false)} className="mt-auto w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition shadow-md shrink-0 text-sm">
                   Bezárás
                 </button>
@@ -1576,13 +1700,11 @@ export default function Home() {
             <div className="bg-white p-8 sm:p-10 rounded-3xl shadow-2xl w-full max-w-md relative animate-fade-in-up border border-gray-100">
               <button onClick={() => setSelectedLog(null)} className="absolute top-5 right-6 text-gray-400 hover:text-gray-800 transition-colors text-3xl font-light leading-none">×</button>
 
-              {/* --- Modern Fejléc --- */}
               <div className="mb-8 pr-8">
                 <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1.5">Napi Összefoglaló</p>
                 <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">{formatDateLabel(selectedLog.date)}</h2>
                 <div className="mt-3">
                   {(() => {
-                    // Kiszűrjük az emojit a mentett adatból, csak a szöveg kell
                     const moodText = selectedLog.mood.substring(selectedLog.mood.indexOf(' ') + 1);
                     const isGood = moodText.includes("Szuper") || moodText.includes("Jó");
                     const isBad = moodText.includes("Rossz");
@@ -1592,7 +1714,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* --- Letisztult Statisztika Rács --- */}
               <div className="grid grid-cols-2 gap-3 mb-8">
                 <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 transition-all hover:shadow-sm">
                   <span className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Alvás</span>
@@ -1611,7 +1732,6 @@ export default function Home() {
                   <span className="text-2xl font-extrabold text-gray-900">{selectedLog.workout_minutes}<span className="text-xs font-medium text-gray-500 ml-1">perc</span></span>
                 </div>
 
-                {/* --- Opcionális adatok (Színezett kártyák, de emoji nélkül) --- */}
                 {selectedLog.workout_intensity > 0 && (
                   <div className="bg-red-50/50 p-5 rounded-2xl border border-red-100 col-span-2 sm:col-span-1">
                     <span className="block text-[10px] font-bold text-red-500 uppercase tracking-wider mb-1">Intenzitás</span>
@@ -1632,7 +1752,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* --- Modern Megjegyzés Doboz --- */}
               {selectedLog.notes && (
                 <div className="mb-8">
                   <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Megjegyzés az edzőnek</h4>
@@ -1642,7 +1761,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* --- Elegáns Gomb --- */}
               <button onClick={() => setSelectedLog(null)} className="w-full py-3.5 bg-white border-2 border-gray-200 text-gray-900 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm">
                 Bezárás
               </button>
@@ -1655,16 +1773,12 @@ export default function Home() {
         {/* ========================================== */}
         {isCoachProfileModalOpen && !isCoach && (
           <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md flex items-center justify-center z-[120] p-4 sm:p-6">
-            {/* JAVÍTÁS: max-w-5xl, hogy hatalmas és tágas legyen asztali nézetben */}
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up overflow-hidden border border-gray-200 flex flex-col max-h-[95vh]">
               
-              {/* X gomb - Mobilon abszolút, asztalon is ott van */}
               <button onClick={() => setIsCoachProfileModalOpen(false)} className="absolute top-4 right-4 md:top-6 md:right-8 text-gray-400 hover:text-gray-900 transition-colors text-3xl font-light leading-none z-20 bg-white/80 backdrop-blur-md rounded-full w-10 h-10 flex items-center justify-center hover:bg-gray-100 shadow-sm md:shadow-none md:bg-transparent">×</button>
               
-              {/* Flex-col mobilon, de asztalon kettéválik (md:flex-row) */}
               <div className="flex flex-col md:flex-row h-full overflow-y-auto md:overflow-hidden">
                 
-                {/* Bal Oldal: Profilkép és Alap infók */}
                 <div className="bg-gray-50 md:w-1/3 p-10 lg:p-12 flex flex-col items-center text-center border-b md:border-b-0 md:border-r border-gray-200 relative shrink-0">
                   <div className="absolute inset-0 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none"></div>
                   
@@ -1687,11 +1801,9 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Jobb Oldal: Részletek és Statisztikák */}
                 <div className="md:w-2/3 p-8 sm:p-10 lg:p-12 bg-white overflow-y-auto">
                   <div className="space-y-10 max-w-3xl mx-auto">
                     
-                    {/* Leírás */}
                     <div>
                       <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2">
                          Szakmai Bemutatkozás
@@ -1701,7 +1813,6 @@ export default function Home() {
                       </p>
                     </div>
                     
-                    {/* ÚJ: 3 Oszlopos Statisztika (Tapasztalat, Kliensek, Értékelés) */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="bg-blue-50/30 p-6 rounded-2xl border border-blue-100 flex flex-col items-center sm:items-start justify-center hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-2 mb-2">
@@ -1725,21 +1836,18 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Motiváció */}
                     <div>
                       <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2">
                          Fő motivációm
                       </h3>
                       <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl flex items-start shadow-xl relative overflow-hidden">
                         <div className="absolute right-0 top-0 text-9xl opacity-5 -mt-6 -mr-6 pointer-events-none transform rotate-12">🔥</div>
-                        <span className="text-3xl mr-4 mt-1 opacity-50 text-white">"</span>
                         <p className="text-sm sm:text-base leading-relaxed font-medium italic text-gray-100 relative z-10 pr-4">
                           A legnagyobb siker számomra az, amikor egy kliensem rájön, hogy sokkal többre képes, mint amit valaha is el tudott képzelni magáról. A határaink csak ott vannak, ahová mi magunk húzzuk meg őket.
                         </p>
                       </div>
                     </div>
                     
-                    {/* Bezárás gomb csak mobilon */}
                     <div className="pt-4 md:hidden">
                       <button onClick={() => setIsCoachProfileModalOpen(false)} className="w-full py-4 bg-gray-900 text-white font-extrabold rounded-xl hover:bg-black transition-all text-sm shadow-lg">
                         Bezárás
@@ -1775,4 +1883,4 @@ export default function Home() {
       </div>
     );
   }
-}
+}  

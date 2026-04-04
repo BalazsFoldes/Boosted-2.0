@@ -20,14 +20,25 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
     password_hash = Column(String)
-    full_name = Column(String)
+    
+    # ÚJ: Név szétbontva
+    first_name = Column(String)
+    last_name = Column(String)
+    
     role = Column(String, default="COACH")
     coach_id = Column(Integer, nullable=True)
     specialization = Column(String, nullable=True)
     weekly_plan = Column(String, default="{}")
     coach_notes = Column(String, default="") 
     
-    # ÚJ: Gamifikáció oszlopok a kliensnek
+    # ÚJ: Profil adatok (Klienseknek és Edzőknek is lehet, de főleg Kliens fókuszú)
+    height = Column(Integer, nullable=True)
+    current_weight = Column(Float, nullable=True)
+    goal_weight = Column(Float, nullable=True)
+    primary_goal = Column(String, nullable=True)
+    diet_allergies = Column(String, nullable=True)
+    
+    # Gamifikáció oszlopok a kliensnek
     total_boosts = Column(Integer, default=0)
     has_unseen_boost = Column(Boolean, default=False)
 
@@ -78,7 +89,8 @@ app.add_middleware(
 class UserRegister(BaseModel):
     email: str
     password: str
-    full_name: str
+    first_name: str
+    last_name: str
     specialization: str = "Személyi Edző" 
 
 class UserLogin(BaseModel):
@@ -93,7 +105,17 @@ class ClientRegister(BaseModel):
     token: str
     email: str
     password: str
-    full_name: str
+    first_name: str
+    last_name: str
+
+class ProfileUpdate(BaseModel):
+    first_name: str
+    last_name: str
+    height: int = None
+    current_weight: float = None
+    goal_weight: float = None
+    primary_goal: str = None
+    diet_allergies: str = None
 
 class DailyLogCreate(BaseModel):
     client_id: int
@@ -133,7 +155,8 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
     hashed_pw = hashlib.sha256(user.password.encode()).hexdigest()
     
     new_user = User(
-        email=user.email, password_hash=hashed_pw, full_name=user.full_name, 
+        email=user.email, password_hash=hashed_pw, 
+        first_name=user.first_name, last_name=user.last_name, 
         role="COACH", specialization=user.specialization 
     )
     db.add(new_user)
@@ -147,24 +170,23 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Hibás email vagy jelszó!")
     
     current_plan = "{}"
-    coach_name = None # Alapértelmezett
+    coach_name = None 
 
     if db_user.role == "CLIENT":
-        # Megkeressük az aktuális tervet
         monday = get_monday(datetime.now().date())
         plan = db.query(WeeklyPlan).filter(WeeklyPlan.client_id == db_user.id, WeeklyPlan.week_start_date == monday).first()
         if plan:
             current_plan = plan.plan_data
         
-        # ÚJ: Megkeressük az edző nevét
         if db_user.coach_id:
             coach = db.query(User).filter(User.id == db_user.coach_id).first()
             if coach:
-                coach_name = coach.full_name
+                coach_name = f"{coach.last_name} {coach.first_name}"
 
     return {
         "message": "Sikeres belépés!", 
-        "full_name": db_user.full_name, 
+        "first_name": db_user.first_name, 
+        "last_name": db_user.last_name, 
         "coach_id": db_user.coach_id, 
         "user_id": db_user.id,        
         "role": db_user.role, 
@@ -172,8 +194,32 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "weekly_plan": current_plan,
         "total_boosts": db_user.total_boosts,
         "has_unseen_boost": db_user.has_unseen_boost,
-        "coach_name": coach_name # ÚJ MEZŐ A VÁLASZBAN
+        "coach_name": coach_name,
+        # Profil adatok visszaadása
+        "height": db_user.height,
+        "current_weight": db_user.current_weight,
+        "goal_weight": db_user.goal_weight,
+        "primary_goal": db_user.primary_goal,
+        "diet_allergies": db_user.diet_allergies
     }
+
+# ÚJ VÉGPONT: Profil frissítése
+@app.put("/api/user/{user_id}/profile")
+def update_profile(user_id: int, profile: ProfileUpdate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Felhasználó nem található")
+    
+    user.first_name = profile.first_name
+    user.last_name = profile.last_name
+    user.height = profile.height
+    user.current_weight = profile.current_weight
+    user.goal_weight = profile.goal_weight
+    user.primary_goal = profile.primary_goal
+    user.diet_allergies = profile.diet_allergies
+    
+    db.commit()
+    return {"message": "Profil sikeresen frissítve!"}
 
 @app.post("/api/invite")
 def create_invite(req: InviteRequest, db: Session = Depends(get_db)):
@@ -191,7 +237,7 @@ def check_invite(token: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Ez a meghívó érvénytelen vagy már felhasználták!")
         
     coach = db.query(User).filter(User.id == invite.coach_id).first()
-    return {"valid": True, "coach_name": coach.full_name, "prefilled_email": invite.client_email}
+    return {"valid": True, "coach_name": f"{coach.last_name} {coach.first_name}", "prefilled_email": invite.client_email}
 
 @app.post("/api/register-client")
 def register_client(req: ClientRegister, db: Session = Depends(get_db)):
@@ -204,7 +250,8 @@ def register_client(req: ClientRegister, db: Session = Depends(get_db)):
 
     hashed_pw = hashlib.sha256(req.password.encode()).hexdigest()
     new_client = User(
-        email=req.email, password_hash=hashed_pw, full_name=req.full_name, 
+        email=req.email, password_hash=hashed_pw, 
+        first_name=req.first_name, last_name=req.last_name, 
         role="CLIENT", coach_id=invite.coach_id 
     )
     invite.used = True 
@@ -222,9 +269,12 @@ def get_coach_clients(coach_id: int, db: Session = Depends(get_db)):
         plan = db.query(WeeklyPlan).filter(WeeklyPlan.client_id == c.id, WeeklyPlan.week_start_date == monday).first()
         plan_data = plan.plan_data if plan else "{}"
         result.append({
-            "id": c.id, "full_name": c.full_name, "email": c.email, 
+            "id": c.id, 
+            "first_name": c.first_name,
+            "last_name": c.last_name,
+            "email": c.email, 
             "weekly_plan": plan_data, "coach_notes": c.coach_notes,
-            "total_boosts": c.total_boosts # ÚJ: Edző is látja, hány boostot kapott a kliens
+            "total_boosts": c.total_boosts 
         })
         
     return result
@@ -249,6 +299,13 @@ def create_daily_log(log: DailyLogCreate, db: Session = Depends(get_db)):
         weight=log.weight
     )
     db.add(new_log)
+    
+    # Súly automatikus frissítése a profilon, ha naplózta
+    if log.weight:
+        client = db.query(User).filter(User.id == log.client_id).first()
+        if client:
+            client.current_weight = log.weight
+
     db.commit()
     return {"message": "Napi napló sikeresen elmentve!"}
 
@@ -294,9 +351,6 @@ def update_client_notes(client_id: int, note_data: NoteUpdate, db: Session = Dep
     db.commit()
     return {"message": "Jegyzet sikeresen mentve!"}
 
-# ==========================================
-# ÚJ VÉGPONTOK A GAMIFIKÁCIÓHOZ (BOOST)
-# ==========================================
 @app.post("/api/client/{client_id}/boost")
 def send_boost(client_id: int, db: Session = Depends(get_db)):
     client = db.query(User).filter(User.id == client_id).first()

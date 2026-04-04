@@ -14,7 +14,9 @@ function ClientRegistrationForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+  // JAVÍTÁS: fullName helyett firstName és lastName
+  const [firstName, setFirstName] = useState(""); 
+  const [lastName, setLastName] = useState("");   
 
   // Amikor betölt az oldal, ellenőrizzük a tokent a backenddel
   useEffect(() => {
@@ -54,7 +56,14 @@ function ClientRegistrationForm() {
       const res = await fetch("http://localhost:8000/api/register-client", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, email, password, full_name: fullName }),
+        // JAVÍTÁS: first_name és last_name küldése a backendnek
+        body: JSON.stringify({ 
+          token, 
+          email, 
+          password, 
+          first_name: firstName, 
+          last_name: lastName 
+        }),
       });
 
       if (res.ok) {
@@ -62,7 +71,13 @@ function ClientRegistrationForm() {
         router.push("/"); // Visszadobjuk a főoldalra belépni
       } else {
         const err = await res.json();
-        alert("Hiba: " + err.detail);
+        // JAVÍTÁS: FastAPI validációs hibák emberi formátumban történő kiírása
+        if (Array.isArray(err.detail)) {
+            const errorMessages = err.detail.map(e => `${e.loc[e.loc.length-1]}: ${e.msg}`).join("\n");
+            alert("Validációs hiba:\n" + errorMessages);
+        } else {
+            alert("Hiba: " + err.detail);
+        }
       }
     } catch (error) {
       alert("Szerver hiba történt.");
@@ -111,9 +126,19 @@ function ClientRegistrationForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* JAVÍTÁS: Két külön mező a vezetéknévnek és keresztnévnek */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Teljes Neved</label>
-            <input type="text" required placeholder="Pl. Kiss Anna" className={inputStyle} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Név</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Vezetéknév</label>
+                <input type="text" required className={inputStyle} value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Keresztnév</label>
+                <input type="text" required className={inputStyle} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              </div>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Email cím</label>
