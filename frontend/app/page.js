@@ -650,33 +650,112 @@ export default function Home() {
 
   if (view === "landing") {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col font-sans overflow-x-hidden">
-        <header className="w-full p-6 flex justify-between items-center bg-white shadow-sm border-b border-gray-100 z-10">
-          <button onClick={() => setView("landing")} className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 tracking-tight hover:opacity-80 transition-opacity text-left">
-            Boosted
+      // FRISSÍTVE: 'relative' osztály hozzáadva a háttér elemek miatt
+      <div className="min-h-screen bg-slate-50 flex flex-col font-sans overflow-x-hidden relative">
+        
+        {/* ================================================== */}
+        {/* ÚJ: FIX HÁTTÉR GRADIENS FOLTOK (A MENŐ HÁTTÉR) */}
+        {/* ================================================== */}
+        <div className="fixed top-0 left-0 w-[500px] h-[500px] bg-purple-200/30 rounded-full blur-[120px] pointer-events-none z-0"></div>
+        <div className="fixed bottom-0 right-0 w-[500px] h-[500px] bg-emerald-100/30 rounded-full blur-[120px] pointer-events-none z-0"></div>
+        
+        <header className="w-full p-6 flex justify-between items-center bg-white shadow-sm border-b border-slate-100 z-50 sticky top-0 transition-colors duration-500">
+          {/* ÚJ: LOGO ÉS SZÖVEG EGYÜTT */}
+          <div className="flex items-center gap-3">
+            <button onClick={() => setView("landing")} className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 tracking-tight hover:opacity-80 transition-opacity text-left">
+              Boosted
+            </button>
+          </div>
+          <button onClick={() => setView("login")} className="px-6 py-2 bg-slate-100 text-slate-800 font-bold rounded-lg hover:bg-slate-200 transition text-sm">
+            Bejelentkezés
           </button>
-          <button onClick={() => setView("login")} className="px-6 py-2 bg-gray-100 text-gray-800 font-bold rounded-lg hover:bg-gray-200 transition text-sm">Bejelentkezés</button>
         </header>
 
-        <main className="flex-1 max-w-6xl mx-auto px-4 py-16 md:py-24 flex flex-col items-center text-center">
-          <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 mb-8 tracking-tighter leading-tight">Emeld új szintre a <br /><span className="text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-purple-600">közös munkát</span></h1>
-          <p className="text-xl text-gray-600 mb-16 max-w-2xl leading-relaxed">A Boosted egy adatközpontú platform, amely összeköti a szakértőket és klienseiket. Kövesd az alvást, a stresszt és az edzéseket egyetlen felületen.</p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl text-left">
-            <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-100 flex flex-col">
-              <div className="text-4xl mb-4">🏃‍♂️</div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">Klienseknek</h2>
-              <p className="text-gray-600 mb-6 flex-1">Naplózd egyszerűen a napi biometrikus adataidat.</p>
-              <div className="p-4 bg-orange-50 text-orange-800 rounded-lg text-sm border border-orange-100 font-medium">⚠️ Csatlakozni kizárólag a szakértődtől kapott meghívóval tudsz!</div>
-            </div>
-
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-8 rounded-2xl shadow-md border border-blue-100 flex flex-col">
-              <div className="text-4xl mb-4">📊</div>
-              <h2 className="text-2xl font-bold text-blue-900 mb-3">Szakértőknek</h2>
-              <p className="text-blue-800 mb-6 flex-1 opacity-90">Lásd át az összes kliensed állapotát egyetlen Dashboardon.</p>
-              <button onClick={() => setView("register")} className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg hover:shadow-blue-200">Regisztráció Szakértőként</button>
-            </div>
+        {/* FRISSÍTVE: justify-center helyettitems-center, és relative z-10 */}
+        <main className="flex-1 flex flex-col justify-center items-center pt-8 pb-12 md:pt-12 md:pb-16 relative z-10">
+          
+          {/* ================================================== */}
+          {/* ÚJ: ÓRIÁSI VILLÁM VÍZJEL A HÁTTÉRBEN */}
+          {/* ================================================== */}
+          <div className="absolute inset-0 flex items-center justify-center z-0 opacity-[0.03] pointer-events-none overflow-hidden">
+            <svg className="w-[800px] h-[800px] text-purple-900" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+            </svg>
           </div>
+          
+          <section className="max-w-6xl mx-auto px-6 flex flex-col items-center text-center w-full relative z-10">
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-slate-950 mb-5 tracking-tighter leading-[1.1]">
+              Emeld új szintre a <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                közös munkát
+              </span>
+            </h1>
+            <p className="text-lg md:text-xl text-slate-600 mb-10 md:mb-12 max-w-2xl leading-relaxed font-medium">
+              A Boosted egy adatközpontú platform, amely összeköti a szakértőket és klienseiket. Kövesd az alvást, a stresszt és az edzéseket egyetlen, modern felületen.
+            </p>
+          </section>
+
+          <section className="max-w-6xl mx-auto px-6 w-full relative z-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 hover:[&>div]:z-20">
+              
+              {/* 1. KÁRTYA: EDZŐKNEK/SZAKÉRTŐKNEK */}
+              <div className="group bg-white rounded-3xl p-8 shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-100 transition-all duration-300 relative overflow-hidden min-h-[380px] h-full z-10">
+                <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-purple-100 rounded-full blur-[100px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="w-14 h-14 rounded-2xl bg-purple-100 border border-purple-200 flex items-center justify-center mb-6 shrink-0 shadow-sm transition-transform group-hover:scale-110">
+                    <svg className="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                  </div>
+
+                  <span className="text-purple-600 text-xs font-bold uppercase tracking-widest mb-2">Edzői Megoldás</span>
+                  <h3 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-4 leading-tight tracking-tight">
+                    Skálázd a Praxist
+                  </h3>
+                  <p className="text-slate-600 text-base md:text-lg leading-relaxed mb-8 flex-1 font-medium">
+                    Kezelj korlátlan számú klienst, lásd át az állapotukat egyetlen Dashboardon, és optimalizáld a folyamataidat.
+                  </p>
+
+                  <button onClick={() => setView("register")} className="w-full mt-auto px-6 py-3.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition shadow-lg shadow-purple-200 text-center text-sm md:text-base active:scale-95">
+                    Regisztráció Szakértőként
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. KÁRTYA: KLIENSEKNEK */}
+              <div className="group bg-white rounded-3xl p-8 shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col hover:-translate-y-2 hover:shadow-2xl hover:shadow-emerald-100 transition-all duration-300 relative overflow-hidden min-h-[380px] h-full z-10">
+                <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-emerald-100 rounded-full blur-[100px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center mb-6 shrink-0 shadow-sm transition-transform group-hover:scale-110">
+                    <svg className="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                  </div>
+
+                  <span className="text-emerald-600 text-xs font-bold uppercase tracking-widest mb-2">Kliens Platform</span>
+                  <h3 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-4 leading-tight tracking-tight">
+                    Érd el a Céljaid
+                  </h3>
+                  <p className="text-slate-600 text-base md:text-lg leading-relaxed mb-8 flex-1 font-medium">
+                    Naplózd egyszerűen a biometrikus adataidat, kövesd az edzéstervedet, és kapj visszajelzést a szakértődtől.
+                  </p>
+
+                  <div className="w-full mt-auto p-4 bg-emerald-50 text-emerald-900 rounded-xl text-sm border border-emerald-100 font-semibold flex items-start gap-3 shadow-inner group-hover:border-emerald-200 transition-colors">
+                    <svg className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    <span className="text-xs md:text-sm leading-snug">
+                      <strong className="block mb-0.5 text-emerald-950">Meghívó szükséges</strong>
+                      Csatlakozni kizárólag egyedi meghívóval tudsz az edződtől.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </section>
         </main>
       </div>
     );
@@ -798,16 +877,17 @@ export default function Home() {
 
   if (view === "dashboard") {
     const isCoach = userRole === "COACH";
-    const isAiMode = currentTab === "ai" && !selectedClient; // ÚJ: Ellenőrizzük, hogy AI módban vagyunk-e
+    const isAiMode = currentTab === "ai" && !selectedClient;
     
-    const themeGradient = isCoach ? "from-blue-600 to-purple-600" : "from-emerald-500 to-teal-400";
-    const themeText = isCoach ? "text-blue-700" : "text-emerald-700";
-    const themeBg = isCoach ? "bg-blue-50" : "bg-emerald-50";
+    // KÉK HELYETT LILA TÉMA AZ EDZŐNEK
+    const themeGradient = isCoach ? "from-purple-600 to-indigo-600" : "from-emerald-500 to-teal-400";
+    const themeText = isCoach ? "text-purple-700" : "text-emerald-700";
+    const themeBg = isCoach ? "bg-purple-50" : "bg-emerald-50";
 
     return (
-      <div className={`min-h-screen font-sans relative transition-colors duration-500 ${isAiMode ? "bg-slate-950" : "bg-gray-50"}`}>
+      <div className={`min-h-screen font-sans relative transition-colors duration-500 ${isAiMode ? "bg-slate-950" : "bg-slate-50"}`}>
         
-        <header className={`shadow-sm border-b px-6 py-4 flex flex-col sm:flex-row justify-between items-center z-10 sticky top-0 transition-colors duration-500 ${isAiMode ? "bg-slate-950/80 backdrop-blur-lg border-purple-900/30" : "bg-white border-gray-200"}`}>
+        <header className={`shadow-sm border-b px-6 py-4 flex flex-col sm:flex-row justify-between items-center z-10 sticky top-0 transition-colors duration-500 ${isAiMode ? "bg-slate-950/80 backdrop-blur-lg border-purple-900/30" : "bg-white border-slate-200"}`}>
           <div className="flex items-center justify-between w-full sm:w-auto mb-4 sm:mb-0">
             
             <button 
@@ -1082,7 +1162,7 @@ export default function Home() {
                   </p>
                 </div>
                 {isCoach && (
-                  <button onClick={() => setIsModalOpen(true)} className="flex items-center px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md w-full sm:w-auto justify-center">
+                  <button onClick={() => setIsModalOpen(true)} className="flex items-center px-6 py-3 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition shadow-md w-full sm:w-auto justify-center">
                     <span className="text-xl mr-2">+</span> Új kliens meghívása
                   </button>
                 )}
@@ -1188,7 +1268,7 @@ export default function Home() {
                             placeholder="Keresés név vagy email alapján..." 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-11 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 font-sans text-base font-medium tracking-wide transition-all shadow-sm"
+                            className="w-full pl-11 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none bg-white text-slate-900 font-sans text-base font-medium tracking-wide transition-all shadow-sm"
                           />
                         </div>
                       </div>
