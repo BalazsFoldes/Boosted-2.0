@@ -23,6 +23,8 @@ export default function Home() {
     dietAllergies: ""
   });
 
+  const [boostedClientsToday, setBoostedClientsToday] = useState({});
+
   // ==========================================
   // ÚJ: TÖLTŐKÉPERNYŐ (LOADING) STATE-EK
   // ==========================================
@@ -439,17 +441,22 @@ export default function Home() {
     }
   };
 
-  // ÚJ: Boost Küldése az Edzőtől
   const handleSendBoost = async () => {
+    // Limit ellenőrzése
+    if (boostedClientsToday[selectedClient.id]) {
+      triggerAlert("Ennek a kliensnek ma már küldtél Boost-ot! Gyere vissza holnap.", "info");
+      return;
+    }
+
     setIsActionLoading(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/client/${selectedClient.id}/boost`, { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        triggerAlert(`Sikeresen küldtél egy motivációs Boost-ot ${selectedClient.last_name} ${selectedClient.first_name} számára!`, "success");
-        setSelectedClient({ ...selectedClient, total_boosts: data.total_boosts });
-        setClients(clients.map(c => c.id === selectedClient.id ? { ...c, total_boosts: data.total_boosts } : c));
-      }
+      // Itt menne a fetch, de mockoljuk a sikert
+      triggerAlert(`Sikeresen küldtél egy motivációs Boost-ot ${selectedClient.last_name} ${selectedClient.first_name} számára!`, "success");
+      
+      // Megjegyezzük, hogy ma már kapott
+      setBoostedClientsToday(prev => ({ ...prev, [selectedClient.id]: true }));
+      setSelectedClient({ ...selectedClient, total_boosts: (selectedClient.total_boosts || 0) + 1 });
+      
     } catch (error) {
       triggerAlert("Hiba a boost küldésekor.", "error");
     } finally {
@@ -645,7 +652,9 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col font-sans overflow-x-hidden">
         <header className="w-full p-6 flex justify-between items-center bg-white shadow-sm border-b border-gray-100 z-10">
-          <div className="text-2xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-purple-600 tracking-tight">Boosted</div>
+          <button onClick={() => setView("landing")} className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 tracking-tight hover:opacity-80 transition-opacity text-left">
+            Boosted
+          </button>
           <button onClick={() => setView("login")} className="px-6 py-2 bg-gray-100 text-gray-800 font-bold rounded-lg hover:bg-gray-200 transition text-sm">Bejelentkezés</button>
         </header>
 
@@ -726,35 +735,113 @@ export default function Home() {
     );
   }
 
+  if (view === "premium") {
+    return (
+      <div className="min-h-screen bg-gray-900 font-sans text-white overflow-hidden relative">
+        {/* Háttér effektek */}
+        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-600/30 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px] pointer-events-none"></div>
+
+        <header className="p-6 flex justify-between items-center relative z-10 max-w-6xl mx-auto">
+          <div className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 tracking-tight cursor-pointer" onClick={() => setView("dashboard")}>
+            Boosted <span className="text-white">PRO</span>
+          </div>
+          <button onClick={() => setView("dashboard")} className="text-gray-400 hover:text-white font-bold text-sm transition">← Vissza a Dashboardra</button>
+        </header>
+
+        <main className="max-w-4xl mx-auto px-4 py-12 md:py-20 relative z-10 flex flex-col items-center text-center">
+          <span className="px-4 py-1.5 rounded-full bg-purple-500/20 text-purple-300 font-bold text-xs uppercase tracking-widest border border-purple-500/30 mb-6">Fejleszd a potenciálod</span>
+          <h1 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight">
+            Emeld a munkát <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-yellow-500 to-orange-500">Prémium szintre</span>
+          </h1>
+          <p className="text-xl text-gray-400 mb-12 max-w-2xl leading-relaxed">
+            Oldd fel az okos AI asszisztenst, a korlátlan visszamenőleges elemzéseket és a prémium gamifikációs funkciókat.
+          </p>
+
+          <div className="bg-white/5 border border-white/10 backdrop-blur-xl p-8 md:p-12 rounded-3xl shadow-2xl w-full max-w-2xl relative overflow-hidden">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-white/10 pb-8 gap-6 text-left">
+              <div>
+                <h3 className="text-3xl font-extrabold text-white mb-2">Boosted PRO</h3>
+                <p className="text-gray-400 text-sm">Minden, ami a profi elemzéshez kell.</p>
+              </div>
+              <div className="text-right">
+                <span className="text-4xl font-extrabold text-white">1.490 Ft</span>
+                <span className="text-gray-500 block text-sm mt-1">/ hónap</span>
+              </div>
+            </div>
+
+            <ul className="space-y-4 text-left mb-10">
+              <li className="flex items-center text-gray-300 font-medium">
+                <span className="text-emerald-400 mr-3 text-xl">✓</span> <strong>AI Asszisztens</strong> – prediktív sérülés és kiégés előrejelzés
+              </li>
+              <li className="flex items-center text-gray-300 font-medium">
+                <span className="text-emerald-400 mr-3 text-xl">✓</span> <strong>Korlátlan Kliens</strong> – ne legyen akadálya a növekedésnek
+              </li>
+              <li className="flex items-center text-gray-300 font-medium">
+                <span className="text-emerald-400 mr-3 text-xl">✓</span> <strong>Mély statisztikák</strong> – exportálható PDF elemzések
+              </li>
+              <li className="flex items-center text-gray-300 font-medium">
+                <span className="text-emerald-400 mr-3 text-xl">✓</span> <strong>Prioritásos ügyfélszolgálat</strong>
+              </li>
+            </ul>
+
+            <button className="w-full py-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-gray-900 font-extrabold text-lg rounded-xl hover:scale-[1.02] transition-transform shadow-lg shadow-orange-500/20">
+              Előfizetés Indítása
+            </button>
+            <p className="text-xs text-gray-500 mt-4">7 napos ingyenes próbaidőszak. Bármikor lemondható.</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (view === "dashboard") {
     const isCoach = userRole === "COACH";
+    const isAiMode = currentTab === "ai" && !selectedClient; // ÚJ: Ellenőrizzük, hogy AI módban vagyunk-e
+    
     const themeGradient = isCoach ? "from-blue-600 to-purple-600" : "from-emerald-500 to-teal-400";
     const themeText = isCoach ? "text-blue-700" : "text-emerald-700";
     const themeBg = isCoach ? "bg-blue-50" : "bg-emerald-50";
 
     return (
-      <div className="min-h-screen bg-gray-50 font-sans relative">
-        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row justify-between items-center z-10 sticky top-0">
+      <div className={`min-h-screen font-sans relative transition-colors duration-500 ${isAiMode ? "bg-slate-950" : "bg-gray-50"}`}>
+        
+        <header className={`shadow-sm border-b px-6 py-4 flex flex-col sm:flex-row justify-between items-center z-10 sticky top-0 transition-colors duration-500 ${isAiMode ? "bg-slate-950/80 backdrop-blur-lg border-purple-900/30" : "bg-white border-gray-200"}`}>
           <div className="flex items-center justify-between w-full sm:w-auto mb-4 sm:mb-0">
-            <div className={`text-2xl font-extrabold text-transparent bg-clip-text bg-linear-to-r ${themeGradient} tracking-tight mr-8`}>
+            
+            <button 
+              onClick={() => { setSelectedClient(null); setCurrentTab("overview"); }} 
+              className={`text-2xl font-extrabold text-transparent bg-clip-text tracking-tight mr-8 hover:opacity-80 transition-opacity text-left ${isAiMode ? "bg-gradient-to-r from-purple-400 to-indigo-300" : `bg-gradient-to-r ${themeGradient}`}`}
+            >
               Boosted {isCoach ? "Coach" : "Client"}
-            </div>
+            </button>
+            
             {!selectedClient && (
               <nav className="hidden sm:flex space-x-2">
-                <button onClick={() => setCurrentTab("overview")} className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 ${currentTab === "overview" ? `${themeBg} ${themeText}` : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"}`}>Áttekintés</button>
-                <button onClick={() => setCurrentTab("profile")} className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 ${currentTab === "profile" ? `${themeBg} ${themeText}` : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"}`}>Saját Profil</button>
+                <button onClick={() => setCurrentTab("overview")} className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 ${currentTab === "overview" ? `${themeBg} ${themeText}` : (isAiMode ? "text-purple-300 hover:bg-white/5" : "text-gray-500 hover:bg-gray-100")}`}>Áttekintés</button>
+                <button onClick={() => setCurrentTab("profile")} className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 ${currentTab === "profile" ? `${themeBg} ${themeText}` : (isAiMode ? "text-purple-300 hover:bg-white/5" : "text-gray-500 hover:bg-gray-100")}`}>Saját Profil</button>
+                <button onClick={() => setCurrentTab("ai")} className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 flex items-center gap-1.5 ${currentTab === "ai" ? "bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.5)]" : "text-gray-500 hover:bg-purple-50 hover:text-purple-600"}`}>
+                  AI Asszisztens
+                </button>
               </nav>
             )}
           </div>
+          
           <div className="flex items-center space-x-4 w-full sm:w-auto justify-between sm:justify-end">
             {!selectedClient && (
-              <nav className="sm:hidden flex space-x-2 flex-1 mr-4">
-                <button onClick={() => setCurrentTab("overview")} className={`flex-1 py-2 text-xs font-bold rounded-full transition-all ${currentTab === "overview" ? `${themeBg} ${themeText}` : "text-gray-500 hover:bg-gray-100"}`}>Áttekintés</button>
-                <button onClick={() => setCurrentTab("profile")} className={`flex-1 py-2 text-xs font-bold rounded-full transition-all ${currentTab === "profile" ? `${themeBg} ${themeText}` : "text-gray-500 hover:bg-gray-100"}`}>Profil</button>
+              <nav className="sm:hidden flex space-x-1 flex-1 mr-4">
+                <button onClick={() => setCurrentTab("overview")} className={`px-3 py-2 text-xs font-bold rounded-full transition-all ${currentTab === "overview" ? `${themeBg} ${themeText}` : (isAiMode ? "text-purple-300" : "text-gray-500")}`}>Áttek</button>
+                <button onClick={() => setCurrentTab("profile")} className={`px-3 py-2 text-xs font-bold rounded-full transition-all ${currentTab === "profile" ? `${themeBg} ${themeText}` : (isAiMode ? "text-purple-300" : "text-gray-500")}`}>Profil</button>
+                <button onClick={() => setCurrentTab("ai")} className={`px-3 py-2 text-xs font-bold rounded-full transition-all ${currentTab === "ai" ? "bg-purple-600 text-white shadow-md" : "text-gray-500"}`}>AI</button>
               </nav>
             )}
-            <span className="text-sm text-gray-600 font-medium hidden md:inline">{loggedInUser} <span className="text-gray-400">({isCoach ? "Edző" : "Kliens"})</span></span>
-            <button onClick={handleLogout} className="px-4 py-2 bg-red-50 text-red-600 text-sm font-bold rounded-lg hover:bg-red-100 transition whitespace-nowrap">Kijelentkezés</button>
+            <span className={`text-sm font-medium hidden md:inline transition-colors ${isAiMode ? "text-purple-200" : "text-gray-600"}`}>
+              {loggedInUser} <span className={isAiMode ? "text-purple-400/50" : "text-gray-400"}>({isCoach ? "Edző" : "Kliens"})</span>
+            </span>
+            <button onClick={handleLogout} className={`px-4 py-2 text-sm font-bold rounded-lg transition whitespace-nowrap ${isAiMode ? "bg-red-500/10 text-red-400 hover:bg-red-500/20" : "bg-red-50 text-red-600 hover:bg-red-100"}`}>
+              Kijelentkezés
+            </button>
           </div>
         </header>
 
@@ -784,37 +871,92 @@ export default function Home() {
                 
                 <button 
                   onClick={handleSendBoost}
-                  className="px-6 py-3 bg-gradient-to-r from-orange-400 to-pink-500 text-white font-bold rounded-xl hover:shadow-lg transition flex items-center justify-center shadow-md text-base"
+                  disabled={boostedClientsToday[selectedClient.id]}
+                  className={`px-6 py-3 font-bold rounded-xl transition flex items-center justify-center shadow-md text-base ${
+                    boostedClientsToday[selectedClient.id] 
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' 
+                      : 'bg-gradient-to-r from-orange-400 to-pink-500 text-white hover:shadow-lg'
+                  }`}
                 >
-                  <span className="text-xl mr-2">⚡</span> Boost küldése
+                  <span className="text-xl mr-2">{boostedClientsToday[selectedClient.id] ? "" : "⚡"}</span> 
+                  {boostedClientsToday[selectedClient.id] ? "Boost elküldve" : "Boost küldése"}
                 </button>
               </div>
 
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8 mb-8 flex flex-col lg:flex-row gap-8 items-start">
-                
-                <div className="flex items-start gap-6 flex-1 w-full">
-                  <div className="h-24 w-24 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-4xl font-extrabold shrink-0 shadow-inner">
-                    {selectedClient.last_name.charAt(0).toUpperCase()}
-                  </div>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8 mb-8 flex flex-col lg:flex-row gap-8 items-stretch animate-fade-in-up">
+  
+                {/* BAL OLDAL: Identitás és Fizikai paraméterek */}
+                <div className="flex-1 w-full">
                   
-                  <div className="space-y-3 mt-2">
-                    <h1 className="text-3xl font-extrabold text-gray-900 leading-none">{selectedClient.last_name} {selectedClient.first_name}</h1>
-                    <div className="flex flex-col gap-2 text-base text-gray-600 font-medium">
-                      <span className="flex items-center">{selectedClient.email}</span>
-                      <span className="flex items-center">Csatlakozott: 2026. Március</span>
-                      <div className="flex gap-2">
-                        <span className="inline-flex items-center text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-sm font-bold uppercase tracking-wide mt-1">
-                          Aktív Kliens
+                  {/* Felső sor: Avatár, Név, Email, Tagek */}
+                  <div className="flex items-start gap-6 mb-6">
+                    
+                    {/* VISSZAÁLLÍTVA AZ EREDETI KEREK PROFILKÉP */}
+                    <div className="h-24 w-24 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-4xl font-extrabold shrink-0 shadow-inner">
+                      {selectedClient.last_name.charAt(0).toUpperCase()}
+                    </div>
+                    
+                    <div className="space-y-3 mt-1">
+                      <h1 className="text-3xl font-extrabold text-gray-900 leading-none tracking-tight">
+                        {selectedClient.last_name} {selectedClient.first_name}
+                      </h1>
+                      <div className="flex flex-col gap-1.5 text-sm text-gray-600 font-medium">
+                        <span className="flex items-center text-gray-500">{selectedClient.email}</span>
+                        <span className="flex items-center text-gray-400 text-xs uppercase tracking-wider font-bold">Csatlakozott: 2026. Március</span>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <span className="inline-flex items-center text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-widest shadow-sm">
+                            Aktív Kliens
+                          </span>
+                          {selectedClient.total_boosts > 0 && (
+                            <span className="inline-flex items-center text-orange-700 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-widest shadow-sm">
+                              ⚡ Boosted {selectedClient.total_boosts}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Alsó sor: Fizikai adatok és célok */}
+                  <div className="pt-6 border-t border-gray-100">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Magasság</span>
+                        <span className="text-xl font-extrabold text-gray-900">{selectedClient.height || "175"} <span className="text-sm text-gray-500 font-bold">cm</span></span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Súly</span>
+                        <span className="text-xl font-extrabold text-gray-900">{selectedClient.current_weight || "72.5"} <span className="text-sm text-gray-500 font-bold">kg</span></span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Célsúly</span>
+                        <span className="text-xl font-extrabold text-gray-900">{selectedClient.goal_weight || "68.0"} <span className="text-sm text-gray-500 font-bold">kg</span></span>
+                      </div>
+                      <div className="flex flex-col pl-4 border-l border-gray-100">
+                        <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">BMI Index</span>
+                        <span className="text-xl font-extrabold text-emerald-600">
+                          {selectedClient.height && selectedClient.current_weight 
+                            ? (selectedClient.current_weight / Math.pow(selectedClient.height / 100, 2)).toFixed(1) 
+                            : "23.7"}
                         </span>
-                        <span className="inline-flex items-center text-orange-700 bg-orange-50 border border-orange-200 px-3 py-1 rounded-full text-sm font-bold tracking-wide mt-1">
-                          ⚡ Boosted {selectedClient.total_boosts || 0}
-                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 text-sm">
+                      <div className="mb-2">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Elsődleges Cél</span>
+                        <span className="font-bold text-gray-800">{selectedClient.primary_goal || "Izomtömeg növelés és állóképesség javítás."}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Étrend / Allergiák</span>
+                        <span className="font-medium text-gray-600">{selectedClient.diet_allergies || "Laktózérzékeny, magas fehérjetartalmú étrend."}</span>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex-1 w-full lg:w-auto bg-gray-50 p-5 rounded-xl border border-gray-100">
+                {/* JOBB OLDAL: Edzői Jegyzetek (VISSZAÁLLÍTVA AZ EREDETI DESIGNRA) */}
+                <div className="flex-1 w-full lg:w-auto bg-gray-50 p-5 rounded-xl border border-gray-100 flex flex-col min-h-[300px]">
                   <div className="flex justify-between items-center mb-3">
                     <label className="text-sm font-bold text-gray-700 flex items-center">
                       <span className="mr-2"></span> Edzői Jegyzetek
@@ -826,15 +968,16 @@ export default function Home() {
                   <textarea 
                     value={coachNotes}
                     onChange={(e) => setCoachNotes(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none resize-none h-24 transition"
+                    className="flex-1 w-full bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none resize-none transition"
                     placeholder="Írd ide a klienssel kapcsolatos fontos infókat (pl. sérülések, célok, betegségek)..."
                   ></textarea>
                 </div>
+                
               </div>
 
               {/* AI Asszisztens Jelentése */}
               <div className="bg-gradient-to-r from-indigo-900 to-purple-900 rounded-2xl p-8 mb-8 shadow-lg text-white relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-10 text-9xl">🤖</div>
+                <div className="absolute top-0 right-0 p-8 opacity-10 text-9xl"></div>
                 <h3 className="text-xl font-bold mb-2 flex items-center">
                   <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded uppercase tracking-wide mr-3">AI Asszisztens Elemzése</span>
                 </h3>
@@ -846,7 +989,7 @@ export default function Home() {
                   </p>
                 )}
                 <div className="mt-4 flex gap-2">
-                  <button className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-bold transition">Új elemzés generálása</button>
+                  <button className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-bold transition">Elemzés megnyitása</button>
                 </div>
               </div>
 
@@ -1228,7 +1371,7 @@ export default function Home() {
                       <div className="space-y-4">
                         <div className="flex justify-between items-center pb-4 border-b border-gray-100">
                           <span className="text-gray-600">Csatlakozás</span>
-                          <span className="font-bold text-gray-900">2026. Március</span>
+                          <span className="font-bold text-gray-900">2026.03.14</span>
                         </div>
                         <div className="flex justify-between items-center pb-4 border-b border-gray-100">
                           <span className="text-gray-600">Aktív kliensek</span>
@@ -1246,7 +1389,7 @@ export default function Home() {
                       <div className="space-y-4">
                         <div className="flex justify-between items-center pb-4 border-b border-gray-100">
                           <span className="text-gray-600">Regisztráció</span>
-                          <span className="font-bold text-gray-900">2026. Március</span>
+                          <span className="font-bold text-gray-900">2026.04.04</span>
                         </div>
                         <div className="flex justify-between items-center pb-4 border-b border-gray-100">
                           <span className="text-gray-600">Naplózások</span>
@@ -1293,7 +1436,7 @@ export default function Home() {
                       
                       {/* 2. Szerepkör (Egy oszlop, beállított magassággal a szimmetriáért) */}
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Szerepkör</label>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Szerep</label>
                         <div className={`font-bold px-4 rounded-xl border flex items-center h-[56px] ${isCoach ? "text-purple-700 bg-purple-50 border-purple-100" : "text-emerald-700 bg-emerald-50 border-emerald-100"}`}>
                           {isCoach ? ` ${userSpecialization || "Edzői Fiók"}` : " Kliens Fiók"}
                         </div>
@@ -1328,17 +1471,20 @@ export default function Home() {
                       {/* 4. Előfizetési csomag (Teljes szélesség alul) */}
                       <div className="col-span-1 sm:col-span-2">
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Előfizetési Csomag</label>
-                        <div className="flex items-center justify-between p-3.5 rounded-xl border border-yellow-500/20 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-md relative overflow-hidden group cursor-pointer transition-transform hover:-translate-y-0.5 h-[76px]">
-                           <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                           <div className="flex items-center gap-3 relative z-10">
-                             <div>
-                               <p className="font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500 leading-tight">Boosted PRO</p>
-                               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Aktív Prémium</p>
-                             </div>
-                           </div>
-                           <div className="relative z-10 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-lg text-yellow-300 border border-white/10 hover:bg-white/20 transition-colors">
-                             Kezelés
-                           </div>
+                        <div 
+                          onClick={() => setView("premium")} 
+                          className="flex items-center justify-between p-3.5 rounded-xl border border-yellow-500/20 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-md relative overflow-hidden group cursor-pointer transition-transform hover:-translate-y-0.5 h-[76px]"
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                          <div className="flex items-center gap-3 relative z-10">
+                            <div>
+                              <p className="font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500 leading-tight">Boosted PRO</p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Aktív Prémium</p>
+                            </div>
+                          </div>
+                          <div className="relative z-10 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-lg text-yellow-300 border border-white/10 hover:bg-white/20 transition-colors">
+                            Kezelés
+                          </div>
                         </div>
                       </div>
 
@@ -1460,6 +1606,166 @@ export default function Home() {
             </>
           )}
           {/* TÖLTŐKÉPERNYŐ FELTÉTEL VÉGE */}
+
+          {/* ========================================== */}
+          {/* 3. AI ASSZISZTENS TAB (ULTRA MODERN DARK)  */}
+          {/* ========================================== */}
+          {currentTab === "ai" && !selectedClient && (
+            <div className="animate-fade-in-up w-full max-w-6xl mx-auto pt-4 pb-12">
+              
+              {/* Háttér fények az egész oldalra */}
+              <div className="fixed top-[20%] right-[-10%] w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+              <div className="fixed bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+              
+              <div className="relative z-10">
+                
+                {/* FEJLÉC */}
+                <div className="flex flex-col md:flex-row gap-8 items-center md:items-start justify-between mb-12 bg-white/5 backdrop-blur-xl border border-white/10 p-8 md:p-12 rounded-[2rem] shadow-2xl">
+                  <div className="max-w-2xl">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></div>
+                      <span className="text-purple-300 text-xs font-bold uppercase tracking-widest">
+                        Boosted Neural Engine
+                      </span>
+                    </div>
+                    <h2 className="text-3xl md:text-5xl font-extrabold mb-5 tracking-tight text-white leading-tight">
+                      {isCoach ? "Professzionális Elemző Központ" : "Személyes Adatvezérelt Elemzés"}
+                    </h2>
+                    <p className="text-purple-200/70 text-lg leading-relaxed font-medium">
+                      {isCoach 
+                        ? "Valós idejű prediktív modellek a klienseid teljesítményéről. Az algoritmus azonosítja a fluktuációs mintákat és automatikusan javaslatokat tesz az optimalizációra."
+                        : "Mélyreható elemzések a napi biometrikus adataid alapján. Prediktív modellekkel minimalizáljuk a sérülésveszélyt és maximalizáljuk a teljesítményedet."}
+                    </p>
+                  </div>
+                  <div className="text-7xl md:text-8xl drop-shadow-[0_0_30px_rgba(168,85,247,0.4)] animate-pulse hidden md:block">🧠</div>
+                </div>
+
+                {isCoach ? (
+                  /* ======================================= */
+                  /* EDZŐI AI FELÜLET (MODERN)               */
+                  /* ======================================= */
+                  <div className="space-y-6 animate-fade-in-up">
+                    
+                    {/* Edzői Statisztika Kártyák */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      
+                      <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/5 flex flex-col hover:border-red-500/30 transition-all relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 to-rose-400 opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                        <h3 className="text-lg font-extrabold text-white mb-3 tracking-wide mt-2">Fluktuációs Kockázat</h3>
+                        <p className="text-sm text-purple-200/70 font-medium mb-6 leading-relaxed">3 kliensed nem naplózott több mint 3 napja. A lemorzsolódási valószínűség kritikus szintre lépett.</p>
+                        <div className="mt-auto bg-black/40 p-4 rounded-xl border border-white/5">
+                          <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest block mb-1.5">Algoritmus Javaslat</span>
+                          <p className="text-sm text-gray-200 font-semibold">Proaktív kapcsolatfelvétel és azonnali motivációs Boost küldése javasolt.</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/5 flex flex-col hover:border-emerald-500/30 transition-all relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-600 to-teal-400 opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                        <h3 className="text-lg font-extrabold text-white mb-3 tracking-wide mt-2">Csapat Terheltsége</h3>
+                        <div className="flex justify-between items-end mb-3">
+                          <span className="text-sm font-bold text-purple-200/70">Átlagos stressz index</span>
+                          <span className="text-xl font-extrabold text-white">4.2 <span className="text-sm text-emerald-400">/ 10.0</span></span>
+                        </div>
+                        <div className="w-full bg-black/40 rounded-full h-1.5 mb-6">
+                          <div className="bg-emerald-400 h-1.5 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.5)]" style={{ width: '42%' }}></div>
+                        </div>
+                        <div className="mt-auto bg-black/40 p-4 rounded-xl border border-white/5">
+                          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block mb-1.5">Státusz Értékelés</span>
+                          <p className="text-sm text-gray-200 font-semibold">A portfólió stressz-szintje az optimális fejlődési zónában tartózkodik.</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/5 flex flex-col hover:border-yellow-500/30 transition-all relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-orange-400 opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                        <h3 className="text-lg font-extrabold text-white mb-3 tracking-wide mt-2">Terv Optimalizáció</h3>
+                        <p className="text-sm text-purple-200/70 font-medium mb-6 leading-relaxed">Egyes klienseknél az alvásminőség csökkenése egybeesik a volumenterhelés növekedésével.</p>
+                        <div className="mt-auto bg-black/40 p-4 rounded-xl border border-white/5">
+                          <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest block mb-1.5">Mikrociklus Korrekció</span>
+                          <p className="text-sm text-gray-200 font-semibold">Aktív regenerációs napok integrálása javasolt a heti tervekbe.</p>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Széles Kiemelt Elemzés Doboz */}
+                    <div className="bg-white/5 backdrop-blur-xl border border-purple-500/20 rounded-3xl p-8 md:p-10 shadow-2xl relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-600/5 to-transparent pointer-events-none"></div>
+                      <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8">
+                        <div className="w-16 h-16 rounded-2xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center shrink-0">
+                          <div className="w-6 h-6 border-t-2 border-r-2 border-purple-400 transform rotate-45"></div>
+                        </div>
+                        <div className="flex-1 text-center md:text-left">
+                          <h3 className="text-2xl font-extrabold text-white mb-3 tracking-tight">
+                            Heti Portfólió Összegzés
+                          </h3>
+                          <p className="text-purple-200/80 font-medium leading-relaxed mb-6">
+                            A klienseid <strong className="text-white">85%-a</strong> sikeresen teljesítette az előírt edzésterveket ezen a héten. A kiadott motivációs Boost-ok egyértelműen növelték az aktivitást a hétvégéhez közeledve. Az összesített fejlődési mutató (teljesítmény/stressz arány) <span className="text-emerald-400 font-bold">+8.4% javulást</span> mutat az előző analitikai ciklushoz képest.
+                          </p>
+                          <button className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors border border-white/10 shadow-sm text-sm">
+                            Részletes PDF Exportálás
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                ) : (
+                  /* ======================================= */
+                  /* KLIENS AI FELÜLET (MODERN)              */
+                  /* ======================================= */
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up">
+                    
+                    <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 shadow-sm border border-white/5 flex flex-col hover:border-emerald-500/30 transition-all relative overflow-hidden group">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-600 to-teal-400 opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                      <h3 className="text-lg font-extrabold text-white mb-3 tracking-wide mt-2">Regenerációs Index</h3>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-end mb-3">
+                          <span className="text-sm font-bold text-purple-200/70">Kockázati besorolás</span>
+                          <span className="text-xl font-extrabold text-emerald-400">Optimális</span>
+                        </div>
+                        <div className="w-full bg-black/40 rounded-full h-1.5 mb-6">
+                          <div className="bg-emerald-400 h-1.5 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.5)]" style={{ width: '15%' }}></div>
+                        </div>
+                        <p className="text-sm text-purple-200/70 font-medium leading-relaxed">
+                          Az elmúlt napok alvásminősége és bevitt adatai alapján a központi idegrendszer állapota kiváló. Készen állsz a magas intenzitású terhelésre.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 shadow-sm border border-white/5 flex flex-col hover:border-blue-500/30 transition-all relative overflow-hidden group">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-cyan-400 opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                      <h3 className="text-lg font-extrabold text-white mb-3 tracking-wide mt-2">Fejlődési Vektor</h3>
+                      <div className="flex-1">
+                        <p className="text-sm text-purple-200/70 font-medium mb-6 leading-relaxed">
+                          A naplózott edzésintenzitások folyamatos emelkedést mutatnak. A terhelhetőséged <strong className="text-white">+12.5%</strong>-kal nőtt az elmúlt 30 napban.
+                        </p>
+                        <div className="bg-black/40 p-4 rounded-xl border border-white/5 mt-auto">
+                          <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest block mb-1.5">Rendszer Előrejelzés</span>
+                          <p className="text-sm text-white font-semibold">Az edződ várhatóan emelni fogja az edzésvolument a héten.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 shadow-sm border border-white/5 flex flex-col hover:border-pink-500/30 transition-all relative overflow-hidden group">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-600 to-rose-400 opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                      <h3 className="text-lg font-extrabold text-white mb-3 tracking-wide mt-2">Szokás Elemzés</h3>
+                      <div className="flex-1">
+                        <p className="text-sm text-purple-200/70 font-medium mb-6 leading-relaxed">
+                          Az adathalmaz mintái alapján a vízfogyasztásod a hétvégi periódusokban szignifikánsan, átlagosan 30%-kal visszaesik.
+                        </p>
+                        <div className="bg-black/40 p-4 rounded-xl border border-white/5 mt-auto">
+                          <span className="text-[10px] font-bold text-pink-400 uppercase tracking-widest block mb-1.5">Optimalizációs Lépés</span>
+                          <p className="text-sm text-white font-semibold">Hidratációs protokoll indítása szükséges a hétvégékre.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
         </main>
 
@@ -2008,4 +2314,4 @@ export default function Home() {
       </div>
     );
   }
-}  
+}
