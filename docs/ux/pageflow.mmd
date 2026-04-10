@@ -1,0 +1,23 @@
+graph TD
+    %% Jelmagyarázat: ▶ Belépési pont, ♦ Modális dialógus, 🔒 Nem belépett user
+    
+    A(▶ S01 - Landing 🔒) -->|Bejelentkezés / Regisztráció| B(S02 - Auth Split-panel 🔒)
+    C[▶ Kliens Meghívó Link 🔒] -->|Deep link / Token| B
+    
+    B -->|Sikeres Auth - Edző| D(S03 - Edző Dashboard)
+    B -->|Sikeres Auth - Kliens| E(S04 - Kliens Dashboard)
+
+    %% EDZŐI ÁG
+    D -->|Kliens listából választás| F(S05 - Kliens Adatlap & Jegyzetek)
+    D -->|AI Asszisztens Tab| G(S06 - Edzői AI Analitika)
+    D -->|Saját Profil -> Prémium| H(S07 - Boosted PRO Landing)
+    D -->|Új kliens meghívása| I(♦ S08 - Meghívó Generáló Modal)
+    F -->|Részletes tervező| J(♦ S09 - Heti Edzésterv Modal)
+
+    %% KLIENSI ÁG
+    E -->|Napi Napló Hozzáadása| K(♦ S10 - Napi Napló Modal)
+    E -->|Napra kattintás| L(♦ S11 - Edzésterv Olvasó Modal)
+    E -->|Korábbi napló részletek| M(♦ S12 - Napi Részletek Modal)
+    E -->|AI Asszisztens Tab| N(S13 - Kliens AI Analitika)
+    E -.->|Push/Értesítés edzőtől| O(♦ S14 - Boost Meglepetés Modal)
+    E -->|Saját Profil -> Edző| P(♦ S15 - Publikus Edző Profil Modal)
