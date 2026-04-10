@@ -18,6 +18,76 @@ function ClientRegistrationForm() {
   const [firstName, setFirstName] = useState(""); 
   const [lastName, setLastName] = useState("");   
 
+  // ==========================================
+  // ÚJ: SAJÁT ALERT RENDSZER (MODERN POPUP)
+  // ==========================================
+  const [appAlert, setAppAlert] = useState({ isOpen: false, message: "", type: "info" });
+  
+  const triggerAlert = (message, type = "info") => {
+    setAppAlert({ isOpen: true, message, type });
+  };
+
+  const renderAppAlert = () => {
+    if (!appAlert.isOpen) return null;
+
+    const isError = appAlert.type === "error";
+    const isSuccess = appAlert.type === "success";
+
+    // Mivel ez a regisztrációs oldal, használjuk a prémium kék/lila dizájnt a sikeres/infó üzenetekhez
+    let iconClass = "bg-red-50 text-red-600";
+    if (!isError) {
+      iconClass = "bg-gradient-to-br from-blue-100 to-purple-100 text-purple-600";
+    }
+
+    let borderClass = "border-red-500";
+    if (!isError) {
+      borderClass = "border-purple-500";
+    }
+
+    let buttonClass = "bg-red-600 hover:bg-red-700";
+    if (!isError) {
+      buttonClass = "bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90";
+    }
+
+    return (
+      <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-md flex items-center justify-center z-[300] p-4 transition-opacity">
+        <div className={`bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm relative transform transition-all flex flex-col items-center text-center animate-fade-in-up border-t-8 ${borderClass}`}>
+          
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 shadow-sm ${iconClass}`}>
+            {isError ? (
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+            ) : isSuccess ? (
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg>
+            ) : (
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            )}
+          </div>
+
+          <h2 className="text-xl font-extrabold text-gray-900 mb-2 tracking-tight">
+            {isError ? "Hiba történt" : isSuccess ? "Sikeres!" : "Értesítés"}
+          </h2>
+          
+          <p className="text-sm text-gray-600 mb-8 font-medium leading-relaxed whitespace-pre-wrap">
+            {appAlert.message}
+          </p>
+
+          <button 
+            onClick={() => {
+              setAppAlert({ ...appAlert, isOpen: false });
+              // Ha sikeres volt a regisztráció, az alert bezárása után irányítjuk át a felhasználót
+              if (isSuccess) {
+                router.push("/");
+              }
+            }} 
+            className={`w-full py-3.5 text-white font-bold rounded-xl transition-all shadow-md text-sm ${buttonClass}`}
+          >
+            Rendben
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   // Amikor betölt az oldal, ellenőrizzük a tokent a backenddel
   useEffect(() => {
     if (!token) {
@@ -67,20 +137,22 @@ function ClientRegistrationForm() {
       });
 
       if (res.ok) {
-        alert("Sikeres regisztráció! Most már bejelentkezhetsz.");
-        router.push("/"); // Visszadobjuk a főoldalra belépni
+        // JAVÍTÁS: natív alert helyett az új rendszer
+        triggerAlert("Sikeres regisztráció! Most már bejelentkezhetsz.", "success");
+        // Az átirányítást (router.push) betettem a popup "Rendben" gombjára, 
+        // hogy a felhasználó el tudja olvasni az üzenetet, mielőtt elugrik az oldal.
       } else {
         const err = await res.json();
-        // JAVÍTÁS: FastAPI validációs hibák emberi formátumban történő kiírása
+        // JAVÍTÁS: FastAPI validációs hibák emberi formátumban történő kiírása + új alert
         if (Array.isArray(err.detail)) {
             const errorMessages = err.detail.map(e => `${e.loc[e.loc.length-1]}: ${e.msg}`).join("\n");
-            alert("Validációs hiba:\n" + errorMessages);
+            triggerAlert("Validációs hiba:\n" + errorMessages, "error");
         } else {
-            alert("Hiba: " + err.detail);
+            triggerAlert(err.detail, "error");
         }
       }
     } catch (error) {
-      alert("Szerver hiba történt.");
+      triggerAlert("Szerver hiba történt.", "error");
     }
   };
 
@@ -148,11 +220,15 @@ function ClientRegistrationForm() {
             <label className="block text-sm font-semibold text-gray-700 mb-1">Jelszó</label>
             <input type="password" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
-          <button type="submit" className="w-full bg-linear-to-r from-blue-600 to-purple-600 text-white font-bold py-4 rounded-xl hover:opacity-90 transition shadow-lg">
+          <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 rounded-xl hover:opacity-90 transition shadow-lg">
             Fiók létrehozása
           </button>
         </form>
       </div>
+
+      {/* POPUP MEGJELENÍTÉSE */}
+      {renderAppAlert()}
+      
     </div>
   );
 }

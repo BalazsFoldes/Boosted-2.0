@@ -22,6 +22,82 @@ export default function Home() {
     primaryGoal: "",
     dietAllergies: ""
   });
+
+  const [appAlert, setAppAlert] = useState({ isOpen: false, message: "", type: "info" });
+  
+  const triggerAlert = (message, type = "info") => {
+    setAppAlert({ isOpen: true, message, type });
+  };
+
+  // Ezt a komponenst hívjuk meg a JSX végén, hogy megjelenjen a popup
+  const renderAppAlert = () => {
+    if (!appAlert.isOpen) return null;
+
+    const isError = appAlert.type === "error";
+    const isSuccess = appAlert.type === "success";
+    
+    // Ellenőrizzük, hogy edző vagy kliens van-e bejelentkezve
+    const isCoach = userRole === "COACH" || view === "register"; // A regisztrációs űrlap is edzői
+
+    // --- DINAMIKUS STÍLUSOK SZEREPKÖR ALAPJÁN ---
+    // Ha hiba van, az mindig piros.
+    // Ha NINCS hiba (tehát success vagy info), akkor nézzük a szerepkört.
+    
+    // 1. Az ikon háttere és színe
+    let iconClass = "bg-red-50 text-red-600"; // Alapértelmezett hiba szín
+    if (!isError) {
+      iconClass = isCoach 
+        ? "bg-gradient-to-br from-blue-100 to-purple-100 text-purple-600" 
+        : "bg-emerald-50 text-emerald-600";
+    }
+
+    // 2. A felső szegély színe
+    let borderClass = "border-red-500";
+    if (!isError) {
+      borderClass = isCoach ? "border-purple-500" : "border-emerald-500";
+    }
+
+    // 3. A gomb színe
+    let buttonClass = "bg-red-600 hover:bg-red-700";
+    if (!isError) {
+      buttonClass = isCoach 
+        ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90" 
+        : "bg-emerald-600 hover:bg-emerald-700";
+    }
+
+    return (
+      <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-md flex items-center justify-center z-[300] p-4 transition-opacity">
+        <div className={`bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm relative transform transition-all flex flex-col items-center text-center animate-fade-in-up border-t-8 ${borderClass}`}>
+          
+          {/* Modern SVG ikonok */}
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 shadow-sm ${iconClass}`}>
+            {isError ? (
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+            ) : isSuccess ? (
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg>
+            ) : (
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            )}
+          </div>
+
+          <h2 className="text-xl font-extrabold text-gray-900 mb-2 tracking-tight">
+            {isError ? "Hiba történt" : isSuccess ? "Sikeres!" : "Értesítés"}
+          </h2>
+          
+          <p className="text-sm text-gray-600 mb-8 font-medium leading-relaxed whitespace-pre-wrap">
+            {appAlert.message}
+          </p>
+
+          <button 
+            onClick={() => setAppAlert({ ...appAlert, isOpen: false })} 
+            className={`w-full py-3.5 text-white font-bold rounded-xl transition-all shadow-md text-sm ${buttonClass}`}
+          >
+            Rendben
+          </button>
+        </div>
+      </div>
+    );
+  };
   
   const [loggedInFirstName, setLoggedInFirstName] = useState(""); 
   const [loggedInLastName, setLoggedInLastName] = useState(""); 
@@ -219,15 +295,15 @@ export default function Home() {
       });
 
       if (res.ok) {
-        alert("Profil sikeresen frissítve!");
+        triggerAlert("Profil sikeresen frissítve!", "success");
         setIsEditingProfile(false);
         setLoggedInFirstName(profileData.firstName);
         setLoggedInLastName(profileData.lastName);
       } else {
-        alert("Hiba a profil mentésekor.");
+        triggerAlert("Hiba a profil mentésekor.", "error");
       }
     } catch (error) {
-      alert("Szerver hiba.");
+      triggerAlert("Szerver hiba.", "error");
     }
   };
 
@@ -291,33 +367,34 @@ export default function Home() {
       });
 
       if (res.ok) {
-        setHasLoggedToday(true);
+        setHasLoggedToday(true); 
         setIsLogModalOpen(false);
         const newLogs = [{...payload, id: Date.now()}, ...clientLogs];
-        setClientLogs(newLogs);
+        setClientLogs(newLogs); 
         setCurrentStreak(calculateStreak(newLogs));
         
         // Ha adott meg súlyt, frissítjük a profilját
-        if (dailyWeight) {
-          setClientProfile(prev => ({ ...prev, weight: parseFloat(dailyWeight.replace(',', '.')) }));
+        if (dailyWeight) { 
+          setClientProfile(prev => ({ ...prev, weight: parseFloat(dailyWeight.replace(',', '.')) })); 
         }
 
         // Visszaállítjuk az alapértékeket a következő napra
         setSleepHours(7); setStressLevel(5); setWaterLiters(2.0); 
         setDidWorkout(true); setWorkoutMinutes(60); setWorkoutIntensity(5);
         setSteps(""); setDailyWeight(""); setMood("😊 Szuper"); setLogNotes("");
+        
+        triggerAlert("Napi napló sikeresen elmentve!", "success");
       } else {
         const err = await res.json();
-        // JAVÍTÁS: Ha a backend validációs hibát dob, szépen kiírjuk, hogy mi a konkrét baj
         if (Array.isArray(err.detail)) {
             const errorMessages = err.detail.map(e => `${e.loc[e.loc.length-1]}: ${e.msg}`).join("\n");
-            alert("Validációs hiba:\n" + errorMessages);
+            triggerAlert("Validációs hiba:\n" + errorMessages, "error");
         } else {
-            alert("Hiba: " + err.detail);
+            triggerAlert(err.detail, "error");
         }
       }
     } catch (error) {
-      alert("Szerver hiba mentés közben.");
+      triggerAlert("Szerver hiba mentés közben.", "error");
     }
   };
 
@@ -350,10 +427,10 @@ export default function Home() {
         body: JSON.stringify({ week_start_date: selectedWeek, plan_data: planDataStr }),
       });
       if (res.ok) {
-        alert(`${planDay} nap terve sikeresen elmentve!`);
+        triggerAlert(`${planDay} nap terve sikeresen elmentve!`, "success");
       }
     } catch (error) {
-      alert("Szerver hiba a terv mentésekor.");
+      triggerAlert("Szerver hiba a terv mentésekor.", "error");
     }
   };
 
@@ -366,10 +443,10 @@ export default function Home() {
       });
       if (res.ok) {
         setClients(clients.map(c => c.id === selectedClient.id ? { ...c, coach_notes: coachNotes } : c));
-        alert("Jegyzet sikeresen elmentve!");
+        triggerAlert("Jegyzet sikeresen elmentve!", "success");
       }
     } catch (error) {
-      alert("Hiba a mentés során.");
+      triggerAlert("Hiba a mentés során.", "error");
     }
   };
 
@@ -379,13 +456,13 @@ export default function Home() {
       const res = await fetch(`http://localhost:8000/api/client/${selectedClient.id}/boost`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
-        alert(`⚡ Sikeresen küldtél egy motivációs Boost-ot ${selectedClient.full_name} számára!`);
+        triggerAlert(`Sikeresen küldtél egy motivációs Boost-ot ${selectedClient.last_name} ${selectedClient.first_name} számára!`, "success");
         // Frissítjük a lokális adatokat
         setSelectedClient({ ...selectedClient, total_boosts: data.total_boosts });
         setClients(clients.map(c => c.id === selectedClient.id ? { ...c, total_boosts: data.total_boosts } : c));
       }
     } catch (error) {
-      alert("Hiba a boost küldésekor.");
+      triggerAlert("Hiba a boost küldésekor.", "error");
     }
   };
 
@@ -456,14 +533,15 @@ export default function Home() {
         body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, specialization }),
       });
       if (res.ok) {
-        alert("Sikeres regisztráció! Kérjük, jelentkezz be.");
-        setView("login"); setPassword(""); 
+        triggerAlert("Sikeres regisztráció! Kérjük, jelentkezz be.", "success");
+        setView("login"); 
+        setPassword(""); 
       } else {
         const err = await res.json();
-        alert("Hiba: " + err.detail);
+        triggerAlert(err.detail, "error");
       }
     } catch (error) {
-      alert("Szerver hiba.");
+      triggerAlert("Szerver hiba.", "error");
     }
   };
 
@@ -510,11 +588,11 @@ export default function Home() {
         setView("dashboard"); 
       } else {
         const err = await res.json();
-        alert("Hiba: " + err.detail);
+        triggerAlert(err.detail, "error");
       }
     } catch (error) {
       console.error("Login hiba:", error);
-      alert("Szerver hiba a bejelentkezés során.");
+      triggerAlert("Szerver hiba a bejelentkezés során.", "error");
     }
   };
 
@@ -528,12 +606,15 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         setGeneratedLink(data.link);
-        if (sendEmail) { alert(`Email elküldve a következő címre: ${clientEmail}`); setClientEmail(""); }
+        if (sendEmail) { 
+          triggerAlert(`Email elküldve a következő címre: ${clientEmail}`, "success"); 
+          setClientEmail(""); 
+        }
       } else {
-        alert("Hiba a generálás során.");
+        triggerAlert("Hiba a generálás során.", "error");
       }
     } catch (error) {
-      alert("Szerver hiba.");
+      triggerAlert("Szerver hiba.", "error");
     }
   };
 
@@ -627,6 +708,7 @@ export default function Home() {
           </form>
           <button onClick={() => setView("landing")} className="mt-6 text-sm text-gray-500 hover:text-gray-800 w-full text-center transition">← Vissza a főoldalra</button>
         </div>
+        {renderAppAlert()}
       </div>
     );
   }
@@ -643,6 +725,7 @@ export default function Home() {
           </form>
           <button onClick={() => setView("landing")} className="mt-6 text-sm text-gray-500 hover:text-gray-800 w-full text-center transition">← Vissza a főoldalra</button>
         </div>
+        {renderAppAlert()}
       </div>
     );
   }
@@ -1150,7 +1233,7 @@ export default function Home() {
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600 pr-2">Kiosztott Boostok</span>
                           <span className="font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-lg whitespace-nowrap shadow-sm">
-                            ⚡ {clients.reduce((sum, c) => sum + (c.total_boosts || 0), 0)} db
+                            {clients.reduce((sum, c) => sum + (c.total_boosts || 0), 0)} db
                           </span>
                         </div>
                       </div>
@@ -1167,11 +1250,11 @@ export default function Home() {
                         </div>
                         <div className="flex justify-between items-center pb-4 border-b border-gray-100">
                           <span className="text-gray-600 pr-2">Összegyűjtött Boostok</span>
-                          <span className="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded whitespace-nowrap">⚡ {totalBoosts} db</span>
+                          <span className="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded whitespace-nowrap">{totalBoosts} db</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">Jelenlegi széria</span>
-                          <span className="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded flex items-center whitespace-nowrap shrink-0">🔥 {currentStreak} nap</span>
+                          <span className="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded flex items-center whitespace-nowrap shrink-0">{currentStreak} nap</span>
                         </div>
                       </div>
                     )}
@@ -1596,7 +1679,17 @@ export default function Home() {
                {generatedLink && (
                  <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl">
                    <p className="text-xs font-bold text-green-800 mb-1 uppercase tracking-wide">Másolható Link:</p>
-                   <input type="text" readOnly value={generatedLink} className="w-full bg-white border border-green-300 p-2 rounded text-sm text-black outline-none" onClick={(e) => { e.target.select(); navigator.clipboard.writeText(generatedLink); alert("Másolva!"); }} />
+                   <input 
+                     type="text" 
+                     readOnly 
+                     value={generatedLink} 
+                     className="w-full bg-white border border-green-300 p-2 rounded text-sm text-black outline-none" 
+                     onClick={(e) => { 
+                       e.target.select(); 
+                       navigator.clipboard.writeText(generatedLink); 
+                       triggerAlert("Link másolva a vágólapra!", "success"); 
+                     }} 
+                   />
                  </div>
                )}
              </div>
@@ -1865,20 +1958,35 @@ export default function Home() {
         {/* ÚJ: KLIENS "MEGLEPETÉS" BOOST ÉRTESÍTŐ MODAL */}
         {/* ========================================== */}
         {hasUnseenBoost && !isCoach && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-            <div className="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-sm relative animate-fade-in-up text-center border-t-8 border-orange-500">
-              <div className="text-6xl mb-4">⚡</div>
-              <h2 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">Szép munka!</h2>
-              <p className="text-gray-600 mb-8 font-medium">Az edződ látta az adataidat, és küldött neked egy motivációs Boost-ot! Csak így tovább!</p>
+          <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-md flex items-center justify-center z-[100] p-4 transition-opacity">
+            <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm relative transform transition-all border border-gray-100 flex flex-col items-center text-center animate-fade-in-up">
+              
+              {/* Ikon lilás-kékes háttérrel, villám SVG-vel */}
+              <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-md bg-gradient-to-br from-blue-100 to-purple-100 text-purple-600">
+                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+              </div>
+
+              <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-2 tracking-tight">
+                Szép munka!
+              </h2>
+              
+              <p className="text-sm text-gray-600 mb-8 font-medium leading-relaxed">
+                Az edződ látta az adataidat, és küldött neked egy motivációs Boost-ot! Csak így tovább!
+              </p>
+
               <button 
                 onClick={handleAcknowledgeBoost} 
-                className="w-full py-4 bg-gradient-to-r from-orange-400 to-pink-500 text-white font-extrabold rounded-xl hover:shadow-lg hover:-translate-y-1 transition-all text-lg"
+                className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:opacity-90 transition-all shadow-md text-sm"
               >
                 Király!
               </button>
             </div>
           </div>
         )}
+
+        {renderAppAlert()}
 
       </div>
     );
