@@ -23,6 +23,12 @@ export default function Home() {
     dietAllergies: ""
   });
 
+  // ==========================================
+  // ÚJ: TÖLTŐKÉPERNYŐ (LOADING) STATE-EK
+  // ==========================================
+  const [isPageLoading, setIsPageLoading] = useState(false); // Dashboard adatok letöltéséhez
+  const [isActionLoading, setIsActionLoading] = useState(false); // Gombnyomásokhoz (mentés, login stb.)
+
   const [appAlert, setAppAlert] = useState({ isOpen: false, message: "", type: "info" });
   
   const triggerAlert = (message, type = "info") => {
@@ -232,51 +238,47 @@ export default function Home() {
   const currentDashboardPlan = todayPlanObj && todayPlanObj.plan_data ? JSON.parse(todayPlanObj.plan_data) : {};
 
   useEffect(() => {
-    const fetchClients = async () => {
-      if (!coachId) return;
+    const loadDashboardData = async () => {
+      if (view !== "dashboard" || !userId) return;
+      
+      setIsPageLoading(true);
+
       try {
-        const res = await fetch(`http://localhost:8000/api/coach/${coachId}/clients`);
-        if (res.ok) {
-          const data = await res.json();
-          setClients(data);
+        if (userRole === "COACH" && coachId) {
+          const res = await fetch(`http://localhost:8000/api/coach/${coachId}/clients`);
+          if (res.ok) {
+            const data = await res.json();
+            setClients(data);
+          }
+        } else if (userRole === "CLIENT") {
+          const resLogs = await fetch(`http://localhost:8000/api/client/${userId}/logs`);
+          if (resLogs.ok) {
+            const logs = await resLogs.json();
+            setClientLogs(logs);
+            const today = new Date().toISOString().split("T")[0];
+            setHasLoggedToday(logs.some(log => log.date === today));
+            setCurrentStreak(calculateStreak(logs)); 
+          }
+          
+          const resPlans = await fetch(`http://localhost:8000/api/client/${userId}/plans`);
+          if (resPlans.ok) {
+            const plans = await resPlans.json();
+            setClientAllPlans(plans);
+          }
         }
       } catch (error) {
-        console.error("Hiba a kliensek lekérésekor:", error);
+        console.error("Hiba az adatok lekérésekor:", error);
+        triggerAlert("Hiba történt az adatok betöltésekor.", "error");
+      } finally {
+        setIsPageLoading(false); // 2. Töltőképernyő kikapcsolása
       }
     };
 
-    const fetchClientLogs = async () => {
-      if (!userId) return;
-      try {
-        const res = await fetch(`http://localhost:8000/api/client/${userId}/logs`);
-        if (res.ok) {
-          const logs = await res.json();
-          setClientLogs(logs);
-          const today = new Date().toISOString().split("T")[0];
-          setHasLoggedToday(logs.some(log => log.date === today));
-          setCurrentStreak(calculateStreak(logs)); // ÚJ: Széria kiszámolása betöltéskor
-        }
-        // JAVÍTÁS: Lekérjük a kliens ÖSSZES edzéstervét is a lapozáshoz!
-        const resPlans = await fetch(`http://localhost:8000/api/client/${userId}/plans`);
-        if (resPlans.ok) {
-          const plans = await resPlans.json();
-          setClientAllPlans(plans);
-        }
-      } catch (error) {
-        console.error("Hiba a naplók/tervek lekérésekor:", error);
-      }
-    };
-
-    if (view === "dashboard") {
-      if (userRole === "COACH") {
-        fetchClients();
-      } else if (userRole === "CLIENT") {
-        fetchClientLogs();
-      }
-    }
+    loadDashboardData();
   }, [view, userRole, coachId, userId]);
 
   const handleUpdateProfile = async () => {
+    setIsActionLoading(true);
     try {
       const payload = {
         first_name: profileData.firstName,
@@ -304,6 +306,8 @@ export default function Home() {
       }
     } catch (error) {
       triggerAlert("Szerver hiba.", "error");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -333,52 +337,32 @@ export default function Home() {
   };
 
   const handleSaveLog = async () => {
+    setIsActionLoading(true);
     try {
       const today = new Date().toISOString().split("T")[0]; 
       
-      // Ha nem edzett, az adatok 0-k lesznek
       const finalMinutes = didWorkout ? workoutMinutes : 0;
       const finalIntensity = didWorkout ? workoutIntensity : 0;
 
-      // Alap payload, az opcionális mezők nélkül
       const payload = {
-        client_id: userId, 
-        date: today, 
-        sleep_hours: sleepHours, 
-        stress_level: stressLevel,
-        water_liters: waterLiters, 
-        workout_minutes: finalMinutes, 
-        workout_intensity: finalIntensity,
-        mood: mood, 
-        notes: logNotes || "" 
+        client_id: userId, date: today, sleep_hours: sleepHours, stress_level: stressLevel,
+        water_liters: waterLiters, workout_minutes: finalMinutes, workout_intensity: finalIntensity,
+        mood: mood, notes: logNotes || "" 
       };
 
-      // Csak akkor adjuk hozzá a payloadhoz a lépést és a súlyt, ha a kliens tényleg beírt valamit
-      if (steps) {
-        payload.steps = parseInt(steps);
-      }
-      if (dailyWeight) {
-        // A replace miatt akkor sem fagy ki, ha vesszővel (71,5) írja be a súlyát pont (71.5) helyett
-        payload.weight = parseFloat(dailyWeight.replace(',', '.')); 
-      }
+      if (steps) payload.steps = parseInt(steps);
+      if (dailyWeight) payload.weight = parseFloat(dailyWeight.replace(',', '.')); 
 
       const res = await fetch("http://localhost:8000/api/client/log", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
 
       if (res.ok) {
-        setHasLoggedToday(true); 
-        setIsLogModalOpen(false);
+        setHasLoggedToday(true); setIsLogModalOpen(false);
         const newLogs = [{...payload, id: Date.now()}, ...clientLogs];
-        setClientLogs(newLogs); 
-        setCurrentStreak(calculateStreak(newLogs));
+        setClientLogs(newLogs); setCurrentStreak(calculateStreak(newLogs));
+        if (dailyWeight) { setClientProfile(prev => ({ ...prev, weight: parseFloat(dailyWeight.replace(',', '.')) })); }
         
-        // Ha adott meg súlyt, frissítjük a profilját
-        if (dailyWeight) { 
-          setClientProfile(prev => ({ ...prev, weight: parseFloat(dailyWeight.replace(',', '.')) })); 
-        }
-
-        // Visszaállítjuk az alapértékeket a következő napra
         setSleepHours(7); setStressLevel(5); setWaterLiters(2.0); 
         setDidWorkout(true); setWorkoutMinutes(60); setWorkoutIntensity(5);
         setSteps(""); setDailyWeight(""); setMood("😊 Szuper"); setLogNotes("");
@@ -395,11 +379,13 @@ export default function Home() {
       }
     } catch (error) {
       triggerAlert("Szerver hiba mentés közben.", "error");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
   const handleSaveDayPlan = async () => {
-    // Ha van idősáv, szépen hozzáfűzzük a szöveg elejére
+    setIsActionLoading(true);
     let finalString = planText;
     if (planStartTime && planEndTime) {
       finalString = `🕒 ${planStartTime} - ${planEndTime}\n${finalString}`;
@@ -422,8 +408,7 @@ export default function Home() {
     
     try {
       const res = await fetch(`http://localhost:8000/api/client/${selectedClient.id}/plan`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ week_start_date: selectedWeek, plan_data: planDataStr }),
       });
       if (res.ok) {
@@ -431,14 +416,16 @@ export default function Home() {
       }
     } catch (error) {
       triggerAlert("Szerver hiba a terv mentésekor.", "error");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
   const handleSaveNotes = async () => {
+    setIsActionLoading(true);
     try {
       const res = await fetch(`http://localhost:8000/api/client/${selectedClient.id}/notes`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ coach_notes: coachNotes }),
       });
       if (res.ok) {
@@ -447,22 +434,26 @@ export default function Home() {
       }
     } catch (error) {
       triggerAlert("Hiba a mentés során.", "error");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
   // ÚJ: Boost Küldése az Edzőtől
   const handleSendBoost = async () => {
+    setIsActionLoading(true);
     try {
       const res = await fetch(`http://localhost:8000/api/client/${selectedClient.id}/boost`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         triggerAlert(`Sikeresen küldtél egy motivációs Boost-ot ${selectedClient.last_name} ${selectedClient.first_name} számára!`, "success");
-        // Frissítjük a lokális adatokat
         setSelectedClient({ ...selectedClient, total_boosts: data.total_boosts });
         setClients(clients.map(c => c.id === selectedClient.id ? { ...c, total_boosts: data.total_boosts } : c));
       }
     } catch (error) {
       triggerAlert("Hiba a boost küldésekor.", "error");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -527,6 +518,7 @@ export default function Home() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    setIsActionLoading(true);
     try {
       const res = await fetch("http://localhost:8000/api/register", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -542,22 +534,22 @@ export default function Home() {
       }
     } catch (error) {
       triggerAlert("Szerver hiba.", "error");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setIsActionLoading(true);
     try {
       const res = await fetch("http://localhost:8000/api/login", {
-        method: "POST", 
-        headers: { "Content-Type": "application/json" }, 
+        method: "POST", headers: { "Content-Type": "application/json" }, 
         body: JSON.stringify({ email, password }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        
-        // Alapadatok beállítása
         setLoggedInFirstName(data.first_name); 
         setLoggedInLastName(data.last_name); 
         setUserRole(data.role); 
@@ -566,16 +558,12 @@ export default function Home() {
         setCoachId(data.role === "COACH" ? data.user_id : data.coach_id);
 
         setProfileData({
-          firstName: data.first_name || "",
-          lastName: data.last_name || "",
-          height: data.height || "",
-          currentWeight: data.current_weight || "",
-          goalWeight: data.goal_weight || "",
-          primaryGoal: data.primary_goal || "",
+          firstName: data.first_name || "", lastName: data.last_name || "",
+          height: data.height || "", currentWeight: data.current_weight || "",
+          goalWeight: data.goal_weight || "", primaryGoal: data.primary_goal || "",
           dietAllergies: data.diet_allergies || ""
         });
         
-        // Kliens specifikus adatok
         if (data.role === "CLIENT") {
            setClientWeeklyPlan(data.weekly_plan ? JSON.parse(data.weekly_plan) : {});
            setTotalBoosts(data.total_boosts || 0);
@@ -583,7 +571,6 @@ export default function Home() {
            setAssignedCoachName(data.coach_name || "Szakértőd"); 
         }
 
-        // Átváltás a Dashboardra
         setCurrentTab("overview"); 
         setView("dashboard"); 
       } else {
@@ -593,10 +580,13 @@ export default function Home() {
     } catch (error) {
       console.error("Login hiba:", error);
       triggerAlert("Szerver hiba a bejelentkezés során.", "error");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
   const handleGenerateInvite = async (sendEmail = false) => {
+    setIsActionLoading(true);
     try {
       const payload = { coach_id: coachId };
       if (sendEmail) payload.email = clientEmail;
@@ -615,6 +605,8 @@ export default function Home() {
       }
     } catch (error) {
       triggerAlert("Szerver hiba.", "error");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -704,7 +696,9 @@ export default function Home() {
             </div>
             <div><label className="block text-sm font-semibold text-gray-700 mb-1">Email cím</label><input type="email" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} /></div>
             <div><label className="block text-sm font-semibold text-gray-700 mb-1">Jelszó</label><input type="password" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-            <button type="submit" className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition shadow-lg">Regisztrálok</button>
+            <button type="submit" disabled={isActionLoading} className={`w-full bg-blue-600 text-white font-bold py-4 rounded-xl transition shadow-lg ${isActionLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}>
+              {isActionLoading ? "Kérjük, várj..." : "Regisztrálok"}
+            </button>
           </form>
           <button onClick={() => setView("landing")} className="mt-6 text-sm text-gray-500 hover:text-gray-800 w-full text-center transition">← Vissza a főoldalra</button>
         </div>
@@ -721,7 +715,9 @@ export default function Home() {
           <form onSubmit={handleLogin} className="space-y-5 mt-8">
             <div><label className="block text-sm font-semibold text-gray-700 mb-1">Email cím</label><input type="email" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} /></div>
             <div><label className="block text-sm font-semibold text-gray-700 mb-1">Jelszó</label><input type="password" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-            <button type="submit" className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl hover:bg-black transition shadow-lg">Belépés</button>
+            <button type="submit" disabled={isActionLoading} className={`w-full bg-gray-900 text-white font-bold py-4 rounded-xl transition shadow-lg ${isActionLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-black'}`}>
+              {isActionLoading ? "Belépés folyamatban..." : "Belépés"}
+            </button>
           </form>
           <button onClick={() => setView("landing")} className="mt-6 text-sm text-gray-500 hover:text-gray-800 w-full text-center transition">← Vissza a főoldalra</button>
         </div>
@@ -762,7 +758,15 @@ export default function Home() {
           </div>
         </header>
 
-        <main className="max-w-6xl mx-auto px-4 py-10">
+        <main className="max-w-6xl mx-auto px-4 py-10 pt-7">
+
+          {isPageLoading ? (
+            <div className="flex flex-col items-center justify-center py-32 animate-fade-in-up">
+              <div className={`w-16 h-16 border-4 border-t-transparent rounded-full animate-spin ${isCoach ? 'border-purple-600' : 'border-emerald-500'}`}></div>
+              <p className="mt-6 text-gray-500 font-bold text-lg tracking-wide animate-pulse">Adatok szinkronizálása...</p>
+            </div>
+          ) : (
+            <>
           
           {/* ========================================== */}
           {/* EDZŐ: RÉSZLETES KLIENS ADATLAP               */}
@@ -1450,10 +1454,14 @@ export default function Home() {
 
                 </div>
               </div>
-            </div>
-          )}
+            </div>
+          )}
 
-        </main>
+            </>
+          )}
+          {/* TÖLTŐKÉPERNYŐ FELTÉTEL VÉGE */}
+
+        </main>
 
         {/* ========================================== */}
         {/* KLIENS: NAPI NAPLÓ MODAL                   */}
@@ -1578,40 +1586,45 @@ export default function Home() {
 
         {/* --- EDZŐ: RÉSZLETES TERVEZŐ MODAL --- */}
         {isPlanModalOpen && isCoach && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col md:flex-row gap-8 max-h-[90vh] overflow-hidden">
-              <button onClick={() => setIsPlanModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold z-10">×</button>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
+            <div className="bg-white p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col md:flex-row gap-4 sm:gap-8 h-[90vh] md:h-auto md:max-h-[90vh] overflow-hidden">
               
-              <div className="flex-1 border-b md:border-b-0 md:border-r border-gray-200 pb-6 md:pb-0 md:pr-6 flex flex-col h-full">
-                <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Idővonal</h2>
-                <p className="text-sm text-gray-500 mb-6">Kattints arra a napra, amit szerkeszteni szeretnél!</p>
+              <button onClick={() => setIsPlanModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-3xl font-light z-20 leading-none bg-white/80 rounded-full w-10 h-10 flex items-center justify-center backdrop-blur-sm">×</button>
+              
+              {/* Bal oldali sáv: Idővonal (Mobilon vízszintes, gépen függőleges) */}
+              <div className="md:w-1/3 border-b md:border-b-0 md:border-r border-gray-100 pb-4 md:pb-0 md:pr-6 flex flex-col shrink-0">
+                <div className="pr-12"> {/* Hely a bezárás gombnak mobilon */}
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-1">Idővonal</h2>
+                  <p className="text-xs sm:text-sm text-gray-500 mb-4">Kattints a napra a szerkesztéshez!</p>
+                </div>
                 
-                <div className="flex items-center justify-between bg-blue-50 p-2 rounded-xl border border-blue-100 mb-6 shrink-0">
-                  <button onClick={() => changeWeek(-7)} className="w-10 h-10 rounded-lg bg-white shadow-sm text-blue-700 font-bold hover:bg-blue-100 transition">←</button>
-                  <span className="text-sm font-bold text-blue-800">{selectedWeek} hete</span>
-                  <button onClick={() => changeWeek(7)} className="w-10 h-10 rounded-lg bg-white shadow-sm text-blue-700 font-bold hover:bg-blue-100 transition">→</button>
+                <div className="flex items-center justify-between bg-blue-50 p-2 rounded-xl border border-blue-100 mb-4 shrink-0">
+                  <button onClick={() => changeWeek(-7)} className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white shadow-sm text-blue-700 font-bold hover:bg-blue-100 transition">←</button>
+                  <span className="text-xs sm:text-sm font-bold text-blue-800">{selectedWeek} hete</span>
+                  <button onClick={() => changeWeek(7)} className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white shadow-sm text-blue-700 font-bold hover:bg-blue-100 transition">→</button>
                 </div>
 
-                <div className="space-y-3 overflow-y-auto pr-2 flex-1 pb-4">
+                {/* Vízszintes görgetés mobilon, függőleges asztalin */}
+                <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto gap-3 md:gap-0 md:space-y-3 pb-2 md:pb-4 flex-1 snap-x scrollbar-hide -mx-5 px-5 md:mx-0 md:px-0">
                   {daysOfWeek.map((day, idx) => {
                     const isActive = planDay === day;
                     return (
                       <div 
                         key={day} 
                         onClick={() => setPlanDay(day)}
-                        className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                        className={`p-3 sm:p-4 rounded-xl border cursor-pointer transition-all shrink-0 w-[75vw] sm:w-[250px] md:w-auto snap-center ${
                           isActive 
                           ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200" 
                           : "border-gray-200 bg-white hover:bg-gray-50 hover:border-blue-300"
                         }`}
                       >
                         <div className="flex justify-between items-center mb-1">
-                          <span className={`font-extrabold ${isActive ? "text-blue-700" : "text-gray-700"}`}>
+                          <span className={`font-extrabold text-sm sm:text-base ${isActive ? "text-blue-700" : "text-gray-700"}`}>
                             {day} <span className="text-gray-400 font-normal text-xs ml-1">({getDayDateLabel(selectedWeek, idx)})</span>
                           </span>
-                          {isActive && <span className="text-blue-600 text-xs font-bold bg-blue-100 px-2 py-1 rounded">Szerkesztés</span>}
+                          {isActive && <span className="text-blue-600 text-[10px] sm:text-xs font-bold bg-blue-100 px-2 py-1 rounded hidden sm:inline-block">Szerkesztés</span>}
                         </div>
-                        <span className={`block text-sm line-clamp-2 ${modalWeeklyPlan[day] ? "text-gray-800" : "text-gray-400 italic"}`}>
+                        <span className={`block text-xs sm:text-sm line-clamp-2 ${modalWeeklyPlan[day] ? "text-gray-800" : "text-gray-400 italic"}`}>
                           {modalWeeklyPlan[day] || "Nincs program rögzítve"}
                         </span>
                       </div>
@@ -1620,41 +1633,40 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex-1 flex flex-col h-full">
-                <div className="mt-8 md:mt-0">
-                  <h2 className="text-2xl font-extrabold text-blue-600 mb-2">{planDay}</h2>
-                  <p className="text-sm text-gray-500 mb-6">Írd meg a részletes edzéstervet vagy fókuszpontokat.</p>
+              {/* Jobb oldali sáv: Szerkesztő */}
+              <div className="flex-1 flex flex-col h-full overflow-hidden">
+                <div className="mb-3 shrink-0">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-blue-600 mb-1">{planDay}</h2>
                 </div>
 
-                {/* ÚJ: IDŐSÁV BEKÉRÉSE */}
-                <div className="mb-4">
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Idősáv (Mettől - Meddig)</label>
+                <div className="mb-4 shrink-0">
+                  <label className="block text-[10px] sm:text-xs font-bold text-gray-500 uppercase mb-1.5">Idősáv (Mettől - Meddig)</label>
                   <div className="flex items-center gap-2">
                     <input 
                       type="time" 
                       value={planStartTime} 
                       onChange={e => setPlanStartTime(e.target.value)} 
-                      className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-gray-700 bg-white" 
+                      className="w-full border border-gray-300 p-2.5 sm:p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xs sm:text-sm font-bold text-gray-700 bg-white" 
                     />
                     <span className="font-bold text-gray-400">-</span>
                     <input 
                       type="time" 
                       value={planEndTime} 
                       onChange={e => setPlanEndTime(e.target.value)} 
-                      className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-gray-700 bg-white" 
+                      className="w-full border border-gray-300 p-2.5 sm:p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xs sm:text-sm font-bold text-gray-700 bg-white" 
                     />
                   </div>
                 </div>
                 
-                <div className="flex-1 flex flex-col mb-6 min-h-[300px]">
+                <div className="flex-1 flex flex-col mb-4 min-h-[150px]">
                   <textarea 
                     placeholder="Pl.: Felsőtest edzés + 20 perc séta..."
                     value={planText} onChange={(e) => setPlanText(e.target.value)}
-                    className="flex-1 w-full border border-gray-300 p-5 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 focus:bg-white text-gray-900 text-sm resize-none transition"
+                    className="flex-1 w-full border border-gray-300 p-4 sm:p-5 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 focus:bg-white text-gray-900 text-sm resize-none transition"
                   ></textarea>
                 </div>
-                <button onClick={handleSaveDayPlan} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md shrink-0 text-sm">
-                  Mentés
+                <button disabled={isActionLoading} onClick={handleSaveDayPlan} className="w-full py-4 sm:py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md shrink-0 text-sm disabled:opacity-50">
+                  {isActionLoading ? "Mentés..." : "Mentés"}
                 </button>
               </div>
             </div>
@@ -1701,22 +1713,26 @@ export default function Home() {
         {/* ÚJ: KLIENS RÉSZLETES EDZÉSTERV OLVASÓ MODAL  */}
         {/* ========================================== */}
         {isClientPlanModalOpen && !isCoach && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col md:flex-row gap-8 max-h-[90vh] overflow-hidden">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
+            <div className="bg-white p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col md:flex-row gap-4 sm:gap-8 h-[85vh] md:h-auto md:max-h-[90vh] overflow-hidden">
               
-              <button onClick={() => setIsClientPlanModalOpen(false)} className="absolute top-3 right-4 text-gray-400 hover:text-gray-700 text-3xl font-bold z-20 leading-none">×</button>
+              <button onClick={() => setIsClientPlanModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-3xl font-light z-20 leading-none bg-white/80 rounded-full w-10 h-10 flex items-center justify-center backdrop-blur-sm">×</button>
               
-              <div className="flex-1 border-b md:border-b-0 md:border-r border-gray-200 pb-6 md:pb-0 md:pr-6 flex flex-col h-full">
-                <h2 className="text-2xl font-extrabold text-gray-900 mb-2 mt-2 md:mt-0">Heti Edzésterv</h2>
-                <p className="text-sm text-gray-500 mb-6">Nézd meg a feladataidat, vagy lapozz a hetek között!</p>
+              {/* Bal oldali sáv: Idővonal */}
+              <div className="md:w-1/3 border-b md:border-b-0 md:border-r border-gray-100 pb-4 md:pb-0 md:pr-6 flex flex-col shrink-0">
+                <div className="pr-12">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-1 mt-1 md:mt-0">Heti Edzésterv</h2>
+                  <p className="text-xs sm:text-sm text-gray-500 mb-4">Nézd meg a feladataidat, vagy lapozz a hetek között!</p>
+                </div>
                 
-                <div className="flex items-center justify-between bg-blue-50 p-2 rounded-xl border border-blue-100 mb-6 shrink-0">
-                  <button onClick={() => changeWeek(-7)} className="w-10 h-10 rounded-lg bg-white shadow-sm text-blue-700 font-bold hover:bg-blue-100 transition">←</button>
-                  <span className="text-sm font-bold text-blue-800">{selectedWeek} hete</span>
-                  <button onClick={() => changeWeek(7)} className="w-10 h-10 rounded-lg bg-white shadow-sm text-blue-700 font-bold hover:bg-blue-100 transition">→</button>
+                <div className="flex items-center justify-between bg-blue-50 p-2 rounded-xl border border-blue-100 mb-4 shrink-0">
+                  <button onClick={() => changeWeek(-7)} className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white shadow-sm text-blue-700 font-bold hover:bg-blue-100 transition">←</button>
+                  <span className="text-xs sm:text-sm font-bold text-blue-800">{selectedWeek} hete</span>
+                  <button onClick={() => changeWeek(7)} className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white shadow-sm text-blue-700 font-bold hover:bg-blue-100 transition">→</button>
                 </div>
 
-                <div className="space-y-3 overflow-y-auto pr-2 flex-1 pb-4">
+                {/* Vízszintes görgetés mobilon */}
+                <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto gap-3 md:gap-0 md:space-y-3 pb-2 md:pb-4 flex-1 snap-x scrollbar-hide -mx-5 px-5 md:mx-0 md:px-0">
                   {daysOfWeek.map((day, idx) => {
                     const isActive = planDay === day;
                     const activeObj = clientAllPlans.find(p => p.week_start === selectedWeek);
@@ -1727,19 +1743,19 @@ export default function Home() {
                       <div 
                         key={day} 
                         onClick={() => setPlanDay(day)}
-                        className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                        className={`p-3 sm:p-4 rounded-xl border cursor-pointer transition-all shrink-0 w-[70vw] sm:w-[250px] md:w-auto snap-center ${
                           isActive 
                           ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200" 
                           : "border-gray-200 bg-white hover:bg-gray-50 hover:border-blue-300"
                         }`}
                       >
                         <div className="flex justify-between items-center mb-1">
-                          <span className={`font-extrabold ${isActive ? "text-blue-700" : "text-gray-700"}`}>
+                          <span className={`font-extrabold text-sm sm:text-base ${isActive ? "text-blue-700" : "text-gray-700"}`}>
                             {day} <span className="text-gray-400 font-normal text-xs ml-1">({getDayDateLabel(selectedWeek, idx)})</span>
                           </span>
-                          {isActive && <span className="text-blue-600 text-xs font-bold bg-blue-100 px-2 py-1 rounded">Kiválasztva</span>}
+                          {isActive && <span className="text-blue-600 text-[10px] font-bold bg-blue-100 px-2 py-1 rounded hidden sm:inline-block">Kiválasztva</span>}
                         </div>
-                        <span className={`block text-sm line-clamp-1 ${hasPlan ? "text-gray-800" : "text-gray-400 italic"}`}>
+                        <span className={`block text-xs sm:text-sm line-clamp-1 ${hasPlan ? "text-gray-800" : "text-gray-400 italic"}`}>
                           {weekPlan[day] || "Pihenőnap"}
                         </span>
                       </div>
@@ -1748,13 +1764,14 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex-1 flex flex-col h-full bg-gray-50 rounded-2xl p-6 border border-gray-100 relative">
-                <div className="mb-6">
-                  <h2 className="text-2xl font-extrabold text-blue-600 mb-2">{planDay}</h2>
-                  <p className="text-sm text-gray-500">Itt találod az edződ által írt részleteket.</p>
+              {/* Jobb oldali sáv: Tartalom olvasása */}
+              <div className="flex-1 flex flex-col h-full bg-gray-50/80 rounded-2xl p-4 sm:p-6 border border-gray-100 relative overflow-hidden">
+                <div className="mb-4 shrink-0">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-blue-600 mb-1">{planDay}</h2>
+                  <p className="text-xs sm:text-sm text-gray-500">Itt találod az edződ által írt részleteket.</p>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto pr-2 mb-4">
+                <div className="flex-1 overflow-y-auto pr-2 mb-4 bg-white rounded-xl p-4 border border-gray-100 shadow-inner">
                   {(() => {
                     const activeObj = clientAllPlans.find(p => p.week_start === selectedWeek);
                     const weekPlan = activeObj && activeObj.plan_data ? JSON.parse(activeObj.plan_data) : {};
@@ -1763,21 +1780,21 @@ export default function Home() {
                     if (!currentDayText) {
                       return (
                         <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                          <p className="font-bold text-lg">Erre a napra nincs program.</p>
-                          <p className="text-sm mt-1">Pihenj és regenerálódj!</p>
+                          <p className="font-bold text-base sm:text-lg">Erre a napra nincs program.</p>
+                          <p className="text-xs sm:text-sm mt-1">Pihenj és regenerálódj!</p>
                         </div>
                       );
                     }
 
                     return (
-                      <p className="text-gray-800 text-base leading-relaxed whitespace-pre-wrap font-medium p-2">
+                      <p className="text-gray-800 text-sm sm:text-base leading-relaxed whitespace-pre-wrap font-medium">
                         {currentDayText}
                       </p>
                     );
                   })()}
                 </div>
                 
-                <button onClick={() => setIsClientPlanModalOpen(false)} className="mt-auto w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition shadow-md shrink-0 text-sm">
+                <button onClick={() => setIsClientPlanModalOpen(false)} className="mt-auto w-full py-4 sm:py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition shadow-md shrink-0 text-sm">
                   Bezárás
                 </button>
               </div>

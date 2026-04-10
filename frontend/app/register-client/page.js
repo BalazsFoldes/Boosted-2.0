@@ -18,6 +18,8 @@ function ClientRegistrationForm() {
   const [firstName, setFirstName] = useState(""); 
   const [lastName, setLastName] = useState("");   
 
+  const [isActionLoading, setIsActionLoading] = useState(false);
+
   // ==========================================
   // ÚJ: SAJÁT ALERT RENDSZER (MODERN POPUP)
   // ==========================================
@@ -122,28 +124,17 @@ function ClientRegistrationForm() {
   // Regisztráció beküldése
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsActionLoading(true);
     try {
       const res = await fetch("http://localhost:8000/api/register-client", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // JAVÍTÁS: first_name és last_name küldése a backendnek
-        body: JSON.stringify({ 
-          token, 
-          email, 
-          password, 
-          first_name: firstName, 
-          last_name: lastName 
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, email, password, first_name: firstName, last_name: lastName }),
       });
 
       if (res.ok) {
-        // JAVÍTÁS: natív alert helyett az új rendszer
         triggerAlert("Sikeres regisztráció! Most már bejelentkezhetsz.", "success");
-        // Az átirányítást (router.push) betettem a popup "Rendben" gombjára, 
-        // hogy a felhasználó el tudja olvasni az üzenetet, mielőtt elugrik az oldal.
       } else {
         const err = await res.json();
-        // JAVÍTÁS: FastAPI validációs hibák emberi formátumban történő kiírása + új alert
         if (Array.isArray(err.detail)) {
             const errorMessages = err.detail.map(e => `${e.loc[e.loc.length-1]}: ${e.msg}`).join("\n");
             triggerAlert("Validációs hiba:\n" + errorMessages, "error");
@@ -153,6 +144,8 @@ function ClientRegistrationForm() {
       }
     } catch (error) {
       triggerAlert("Szerver hiba történt.", "error");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -220,8 +213,8 @@ function ClientRegistrationForm() {
             <label className="block text-sm font-semibold text-gray-700 mb-1">Jelszó</label>
             <input type="password" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
-          <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 rounded-xl hover:opacity-90 transition shadow-lg">
-            Fiók létrehozása
+          <button type="submit" disabled={isActionLoading} className={`w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 rounded-xl transition shadow-lg ${isActionLoading ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'}`}>
+            {isActionLoading ? "Fiók létrehozása..." : "Fiók létrehozása"}
           </button>
         </form>
       </div>
