@@ -761,54 +761,141 @@ export default function Home() {
     );
   }
 
-  if (view === "register") {
+  if (view === "login" || view === "register") {
+    const isLogin = view === "login";
+
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border-t-4 border-blue-600">
-          <h2 className="text-3xl font-extrabold mb-2 text-gray-900 text-center tracking-tight">Szakértői Fiók Létrehozása</h2>
-          <form onSubmit={handleRegister} className="space-y-5 mt-8">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Név</label>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-xs font-semibold text-gray-500 mb-1">Vezetéknév</label><input type="text" required className={inputStyle} value={lastName} onChange={(e) => setLastName(e.target.value)} /></div>
-                <div><label className="block text-xs font-semibold text-gray-500 mb-1">Keresztnév</label><input type="text" required className={inputStyle} value={firstName} onChange={(e) => setFirstName(e.target.value)} /></div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 relative overflow-hidden font-sans">
+        
+        {/* Háttér fény effektek */}
+        <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-purple-200/50 rounded-full blur-[120px] pointer-events-none z-0"></div>
+        <div className="absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] bg-indigo-100/50 rounded-full blur-[100px] pointer-events-none z-0"></div>
+
+        {/* Vissza a főoldalra gomb */}
+        <button onClick={() => setView("landing")} className="absolute top-6 left-6 md:top-10 md:left-10 flex items-center gap-2 text-slate-500 hover:text-purple-600 transition-colors font-bold z-20 text-sm">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+          Vissza a főoldalra
+        </button>
+
+        {/* Fő Auth Kártya */}
+        <div className="bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl shadow-slate-200 w-full max-w-5xl border border-slate-100 relative z-10 flex flex-col md:flex-row overflow-hidden animate-fade-in-up mt-12 md:mt-0">
+          
+          {/* BAL PANEL: Branding & Inkluzív szövegek */}
+          <div className="md:w-5/12 bg-gradient-to-br from-purple-600 via-indigo-600 to-indigo-800 p-10 md:p-12 flex flex-col justify-between relative overflow-hidden text-white shrink-0">
+            <div className="absolute inset-0 opacity-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMSI+PC9yZWN0Pgo8cGF0aCBkPSJNMCAwTDggOFpNOCAwTDAgOFoiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLW9wYWNpdHk9IjAuMSI+PC9wYXRoPgo8L3N2Zz4=')]"></div>
+            
+            <div className="relative z-10">
+              {/* ÚJ: TIPOGRÁFIAI LOGÓ A VILLÁM HELYETT */}
+              <div className="mb-10">
+                <span className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/80 tracking-tight">
+                  Boosted
+                </span>
+                <div className="h-1 w-8 bg-white/40 rounded-full mt-1"></div>
+              </div>
+
+              <h2 className="text-3xl md:text-4xl font-extrabold mb-5 tracking-tight leading-tight">
+                {isLogin ? "Üdv újra a rendszerben!" : "Kezdd el a praxisod skálázását."}
+              </h2>
+              <p className="text-purple-100/90 font-medium leading-relaxed text-sm md:text-base">
+                {isLogin 
+                  ? "Lépj be a fiókodba a közös munka folytatásához. Legyél akár szakértő, akár kliens, az adataid és a fejlődésed egyetlen helyen várnak." 
+                  : "Csatlakozz a leginnovatívabb edzői platformhoz. Adatvezérelt döntések, automatizált elemzések és korlátlan növekedés."}
+              </p>
+            </div>
+
+            {/* Rendszer Státusz */}
+            <div className="relative z-10 mt-12 md:mt-0">
+              <div className="bg-black/20 backdrop-blur-md rounded-2xl p-5 border border-white/10">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="flex h-3 w-3 relative shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-emerald-300">Online</span>
+                </div>
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Szakma / Terület</label>
-              <select className={`${inputStyle} cursor-pointer`} value={specialization} onChange={(e) => setSpecialization(e.target.value)}>
-                <option value="Személyi Edző">Személyi Edző</option><option value="Fizioterapeuta / Gyógytornász">Fizioterapeuta / Gyógytornász</option>
-                <option value="Dietetikus / Táplálkozási Tanácsadó">Dietetikus / Táplálkozási Tanácsadó</option><option value="Sportpszichológus">Sportpszichológus</option>
-                <option value="Életmód Tanácsadó (Health Coach)">Életmód Tanácsadó (Health Coach)</option><option value="Egyéb Szakértő">Egyéb</option>
-              </select>
-            </div>
-            <div><label className="block text-sm font-semibold text-gray-700 mb-1">Email cím</label><input type="email" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-            <div><label className="block text-sm font-semibold text-gray-700 mb-1">Jelszó</label><input type="password" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-            <button type="submit" disabled={isActionLoading} className={`w-full bg-blue-600 text-white font-bold py-4 rounded-xl transition shadow-lg ${isActionLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}>
-              {isActionLoading ? "Kérjük, várj..." : "Regisztrálok"}
-            </button>
-          </form>
-          <button onClick={() => setView("landing")} className="mt-6 text-sm text-gray-500 hover:text-gray-800 w-full text-center transition">← Vissza a főoldalra</button>
-        </div>
-        {renderAppAlert()}
-      </div>
-    );
-  }
+          </div>
 
-  if (view === "login") {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border-t-4 border-gray-800">
-          <h2 className="text-3xl font-extrabold mb-2 text-gray-900 text-center tracking-tight">Üdv újra!</h2>
-          <form onSubmit={handleLogin} className="space-y-5 mt-8">
-            <div><label className="block text-sm font-semibold text-gray-700 mb-1">Email cím</label><input type="email" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-            <div><label className="block text-sm font-semibold text-gray-700 mb-1">Jelszó</label><input type="password" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-            <button type="submit" disabled={isActionLoading} className={`w-full bg-gray-900 text-white font-bold py-4 rounded-xl transition shadow-lg ${isActionLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-black'}`}>
-              {isActionLoading ? "Belépés folyamatban..." : "Belépés"}
-            </button>
-          </form>
-          <button onClick={() => setView("landing")} className="mt-6 text-sm text-gray-500 hover:text-gray-800 w-full text-center transition">← Vissza a főoldalra</button>
+          {/* JOBB PANEL: Űrlapok */}
+          <div className="md:w-7/12 p-8 md:p-14 bg-white flex flex-col justify-center">
+            
+            <div className="flex justify-between items-center mb-10">
+              <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight hidden sm:block">
+                {isLogin ? "Bejelentkezés" : "Szakértői Fiók"}
+              </h3>
+              
+              <div className="bg-slate-100/80 p-1.5 rounded-xl flex text-sm font-bold w-full sm:w-auto">
+                <button onClick={() => setView("login")} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg transition-all ${isLogin ? "bg-white text-purple-600 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>
+                  Belépés
+                </button>
+                <button onClick={() => setView("register")} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg transition-all ${!isLogin ? "bg-white text-purple-600 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>
+                  Új Fiók
+                </button>
+              </div>
+            </div>
+
+            {isLogin ? (
+              <form onSubmit={handleLogin} className="space-y-6 animate-fade-in-up">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Email cím</label>
+                  <input type="email" required className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none text-slate-900 font-medium transition-all" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="pelda@email.hu" />
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">Jelszó</label>
+                    <span className="text-[10px] font-bold text-purple-600 cursor-pointer hover:underline transition-all">Elfelejtetted?</span>
+                  </div>
+                  <input type="password" required className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none text-slate-900 font-medium transition-all" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+                </div>
+                
+                <button type="submit" disabled={isActionLoading} className={`w-full mt-2 bg-slate-900 text-white font-extrabold py-4 rounded-xl transition-all shadow-lg ${isActionLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-600 hover:shadow-purple-200 active:scale-95'}`}>
+                  {isActionLoading ? "Hitelesítés..." : "Bejelentkezés"}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleRegister} className="space-y-5 animate-fade-in-up">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Vezetéknév</label>
+                    <input type="text" required className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none text-slate-900 font-medium transition-all" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Keresztnév</label>
+                    <input type="text" required className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none text-slate-900 font-medium transition-all" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Szakma / Terület</label>
+                  <select className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none text-slate-900 font-medium transition-all cursor-pointer appearance-none" value={specialization} onChange={(e) => setSpecialization(e.target.value)}>
+                    <option value="Személyi Edző">Személyi Edző</option>
+                    <option value="Fizioterapeuta / Gyógytornász">Fizioterapeuta / Gyógytornász</option>
+                    <option value="Dietetikus / Táplálkozási Tanácsadó">Dietetikus / Táplálkozási Tanácsadó</option>
+                    <option value="Sportpszichológus">Sportpszichológus</option>
+                    <option value="Életmód Tanácsadó (Health Coach)">Életmód Tanácsadó (Health Coach)</option>
+                    <option value="Egyéb Szakértő">Egyéb</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Email cím</label>
+                  <input type="email" required className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none text-slate-900 font-medium transition-all" value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
+                
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Jelszó</label>
+                  <input type="password" required className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none text-slate-900 font-medium transition-all" value={password} onChange={(e) => setPassword(e.target.value)} />
+                </div>
+                
+                <button type="submit" disabled={isActionLoading} className={`w-full mt-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-extrabold py-4 rounded-xl transition-all shadow-lg ${isActionLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] hover:shadow-purple-200 active:scale-95'}`}>
+                  {isActionLoading ? "Mentés folyamatban..." : "Fiók Létrehozása"}
+                </button>
+              </form>
+            )}
+          </div>
         </div>
+        
         {renderAppAlert()}
       </div>
     );
