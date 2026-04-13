@@ -450,15 +450,24 @@ export default function Home() {
 
     setIsActionLoading(true);
     try {
-      // Itt menne a fetch, de mockoljuk a sikert
-      triggerAlert(`Sikeresen küldtél egy motivációs Boost-ot ${selectedClient.last_name} ${selectedClient.first_name} számára!`, "success");
-      
-      // Megjegyezzük, hogy ma már kapott
-      setBoostedClientsToday(prev => ({ ...prev, [selectedClient.id]: true }));
-      setSelectedClient({ ...selectedClient, total_boosts: (selectedClient.total_boosts || 0) + 1 });
-      
+      // VALÓDI FETCH HÍVÁS A BACKENDHEZ
+      const res = await fetch(`http://localhost:8000/api/client/${selectedClient.id}/boost`, {
+        method: "POST"
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        triggerAlert(`Sikeresen küldtél egy motivációs Boost-ot ${selectedClient.last_name} ${selectedClient.first_name} számára!`, "success");
+        
+        // Megjegyezzük, hogy ma már kapott (lokális tiltás gombra)
+        setBoostedClientsToday(prev => ({ ...prev, [selectedClient.id]: true }));
+        // Frissítjük a kiválasztott kliens adatait a backend által visszaadott friss számmal
+        setSelectedClient({ ...selectedClient, total_boosts: data.total_boosts });
+      } else {
+        triggerAlert("Hiba a boost küldésekor a szerveren.", "error");
+      }
     } catch (error) {
-      triggerAlert("Hiba a boost küldésekor.", "error");
+      triggerAlert("Hálózati hiba a boost küldésekor.", "error");
     } finally {
       setIsActionLoading(false);
     }
@@ -757,6 +766,12 @@ export default function Home() {
             </div>
           </section>
         </main>
+        {/* ================================================== */}
+        {/* EGYSZERŰ LÁBLÉC (FOOTER) A LANDING OLDALRA         */}
+        {/* ================================================== */}
+        <footer className="w-full py-8 text-center text-slate-400 text-sm border-t border-slate-100 bg-white/50 relative z-10">
+          <p>© 2026 Boosted. Minden jog fenntartva.</p>
+        </footer>
       </div>
     );
   }
@@ -1069,7 +1084,7 @@ export default function Home() {
                       </h1>
                       <div className="flex flex-col gap-1.5 text-sm text-gray-600 font-medium">
                         <span className="flex items-center text-gray-500">{selectedClient.email}</span>
-                        <span className="flex items-center text-gray-400 text-xs uppercase tracking-wider font-bold">Csatlakozott: 2026. Március</span>
+                        <span className="flex items-center text-gray-400 text-xs uppercase tracking-wider font-bold">Csatlakozott: 2026.03.13</span>
                         <div className="flex flex-wrap gap-2 mt-1">
                           <span className="inline-flex items-center text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-widest shadow-sm">
                             Aktív Kliens
@@ -1271,7 +1286,6 @@ export default function Home() {
                     {/* ========================================== */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up">
                       <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-center relative overflow-hidden group hover:border-blue-300 transition-colors">
-                        <div className="absolute -right-6 -top-6 text-8xl opacity-[0.03] group-hover:scale-110 transition-transform">📝</div>
                         <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Mai naplózások</h4>
                         <div className="flex items-end gap-2 mb-3">
                           <span className="text-5xl font-extrabold text-gray-900">7</span>
@@ -1283,7 +1297,6 @@ export default function Home() {
                       </div>
 
                       <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-center relative overflow-hidden group hover:border-orange-300 transition-colors">
-                        <div className="absolute -right-4 -top-2 text-7xl opacity-5 group-hover:scale-110 transition-transform">🔥</div>
                         <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Aktív Szériák (Rekorder)</h4>
                         <span className="text-3xl font-extrabold text-gray-900 truncate">Tóth Anna</span>
                         <span className="text-base font-bold text-orange-500 mt-2 flex items-center gap-1.5">
@@ -2060,7 +2073,7 @@ export default function Home() {
         {/* --- EDZŐ: RÉSZLETES TERVEZŐ MODAL --- */}
         {isPlanModalOpen && isCoach && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
-            <div className="bg-white p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col md:flex-row gap-4 sm:gap-8 h-[90vh] md:h-auto md:max-h-[90vh] overflow-hidden">
+            <div className="bg-white p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col md:flex-row gap-4 sm:gap-8 h-[90vh] md:h-[85vh] overflow-hidden">
               
               <button onClick={() => setIsPlanModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-3xl font-light z-20 leading-none bg-white/80 rounded-full w-10 h-10 flex items-center justify-center backdrop-blur-sm">×</button>
               
@@ -2131,12 +2144,12 @@ export default function Home() {
                   </div>
                 </div>
                 
-                <div className="flex-1 flex flex-col mb-4 min-h-[150px]">
+                <div className="flex-1 flex flex-col mb-4 min-h-[250px] relative">
                   <textarea 
-                    placeholder="Pl.: Felsőtest edzés + 20 perc séta..."
-                    value={planText} onChange={(e) => setPlanText(e.target.value)}
-                    className="flex-1 w-full border border-gray-300 p-4 sm:p-5 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 focus:bg-white text-gray-900 text-sm resize-none transition"
-                  ></textarea>
+                      placeholder="Pl.: Felsőtest edzés + 20 perc séta..."
+                      value={planText} onChange={(e) => setPlanText(e.target.value)}
+                      className="flex-1 w-full border border-gray-300 p-4 sm:p-5 rounded-xl outline-none bg-gray-50 focus:bg-white focus:border-gray-400 text-gray-900 text-base resize-none transition"
+                    ></textarea>
                 </div>
                 <button disabled={isActionLoading} onClick={handleSaveDayPlan} className="w-full py-4 sm:py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md shrink-0 text-sm disabled:opacity-50">
                   {isActionLoading ? "Mentés..." : "Mentés"}
@@ -2183,29 +2196,30 @@ export default function Home() {
         )}
 
         {/* ========================================== */}
-        {/* ÚJ: KLIENS RÉSZLETES EDZÉSTERV OLVASÓ MODAL  */}
+        {/* JAVÍTOTT: KLIENS RÉSZLETES EDZÉSTERV OLVASÓ */}
         {/* ========================================== */}
         {isClientPlanModalOpen && !isCoach && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
-            <div className="bg-white p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col md:flex-row gap-4 sm:gap-8 h-[85vh] md:h-auto md:max-h-[90vh] overflow-hidden">
+            {/* A Modal magasságát fixáljuk 85vh-ra, hogy legyen mihez mérni a görgetést */}
+            <div className="bg-white p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col md:flex-row gap-4 sm:gap-8 h-[90vh] md:h-[85vh] overflow-hidden">
               
-              <button onClick={() => setIsClientPlanModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-3xl font-light z-20 leading-none bg-white/80 rounded-full w-10 h-10 flex items-center justify-center backdrop-blur-sm">×</button>
+              <button onClick={() => setIsClientPlanModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-3xl font-light z-20 leading-none bg-white/80 backdrop-blur-md rounded-full w-10 h-10 flex items-center justify-center backdrop-blur-sm">×</button>
               
-              {/* Bal oldali sáv: Idővonal */}
-              <div className="md:w-1/3 border-b md:border-b-0 md:border-r border-gray-100 pb-4 md:pb-0 md:pr-6 flex flex-col shrink-0">
+              {/* BAL OLDAL: Navigáció */}
+              <div className="md:w-1/3 border-b md:border-b-0 md:border-r border-gray-100 pb-4 md:pb-0 md:pr-6 flex flex-col shrink-0 overflow-hidden">
                 <div className="pr-12">
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-1 mt-1 md:mt-0">Heti Edzésterv</h2>
-                  <p className="text-xs sm:text-sm text-gray-500 mb-4">Nézd meg a feladataidat, vagy lapozz a hetek között!</p>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-1">Heti edzésterved</h2>
+                  <p className="text-xs sm:text-sm text-gray-500 mb-4">Válassz napot!</p>
                 </div>
                 
                 <div className="flex items-center justify-between bg-blue-50 p-2 rounded-xl border border-blue-100 mb-4 shrink-0">
                   <button onClick={() => changeWeek(-7)} className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white shadow-sm text-blue-700 font-bold hover:bg-blue-100 transition">←</button>
-                  <span className="text-xs sm:text-sm font-bold text-blue-800">{selectedWeek} hete</span>
+                  <span className="text-xs sm:text-sm font-bold text-blue-800">{selectedWeek}</span>
                   <button onClick={() => changeWeek(7)} className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white shadow-sm text-blue-700 font-bold hover:bg-blue-100 transition">→</button>
                 </div>
 
-                {/* Vízszintes görgetés mobilon */}
-                <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto gap-3 md:gap-0 md:space-y-3 pb-2 md:pb-4 flex-1 snap-x scrollbar-hide -mx-5 px-5 md:mx-0 md:px-0">
+                {/* Függőleges lista görgethető, ha sok a nap */}
+                <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto gap-3 md:gap-2 pb-2 md:pb-4 flex-1 scrollbar-hide">
                   {daysOfWeek.map((day, idx) => {
                     const isActive = planDay === day;
                     const activeObj = clientAllPlans.find(p => p.week_start === selectedWeek);
@@ -2216,19 +2230,20 @@ export default function Home() {
                       <div 
                         key={day} 
                         onClick={() => setPlanDay(day)}
-                        className={`p-3 sm:p-4 rounded-xl border cursor-pointer transition-all shrink-0 w-[70vw] sm:w-[250px] md:w-auto snap-center ${
+                        className={`p-3 rounded-xl border cursor-pointer transition-all shrink-0 w-[60vw] md:w-auto ${
                           isActive 
-                          ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200" 
-                          : "border-gray-200 bg-white hover:bg-gray-50 hover:border-blue-300"
+                          ? "border-blue-500 bg-blue-50 shadow-sm ring-1 ring-blue-200" 
+                          : "border-gray-100 bg-white hover:bg-gray-50"
                         }`}
                       >
                         <div className="flex justify-between items-center mb-1">
-                          <span className={`font-extrabold text-sm sm:text-base ${isActive ? "text-blue-700" : "text-gray-700"}`}>
-                            {day} <span className="text-gray-400 font-normal text-xs ml-1">({getDayDateLabel(selectedWeek, idx)})</span>
+                          <span className={`font-bold text-xs sm:text-sm ${isActive ? "text-blue-700" : "text-gray-700"}`}>
+                            {day}
                           </span>
-                          {isActive && <span className="text-blue-600 text-[10px] font-bold bg-blue-100 px-2 py-1 rounded hidden sm:inline-block">Kiválasztva</span>}
+                          {hasPlan && <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>}
                         </div>
-                        <span className={`block text-xs sm:text-sm line-clamp-1 ${hasPlan ? "text-gray-800" : "text-gray-400 italic"}`}>
+                        {/* JAVÍTÁS: Itt csak egy rövid részlet látszik */}
+                        <span className={`block text-[10px] sm:text-xs truncate ${hasPlan ? "text-gray-500" : "text-gray-300 italic"}`}>
                           {weekPlan[day] || "Pihenőnap"}
                         </span>
                       </div>
@@ -2237,14 +2252,15 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Jobb oldali sáv: Tartalom olvasása */}
-              <div className="flex-1 flex flex-col h-full bg-gray-50/80 rounded-2xl p-4 sm:p-6 border border-gray-100 relative overflow-hidden">
+              {/* JOBB OLDAL: Részletes szöveg (Görgethető!) */}
+              <div className="flex-1 flex flex-col h-full min-h-0 bg-gray-50 rounded-2xl p-4 sm:p-6 border border-gray-100">
                 <div className="mb-4 shrink-0">
                   <h2 className="text-xl sm:text-2xl font-extrabold text-blue-600 mb-1">{planDay}</h2>
-                  <p className="text-xs sm:text-sm text-gray-500">Itt találod az edződ által írt részleteket.</p>
+                  <p className="text-xs sm:text-sm text-gray-500">Napi részletes program:</p>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto pr-2 mb-4 bg-white rounded-xl p-4 border border-gray-100 shadow-inner">
+                {/* JAVÍTÁS: overflow-y-auto és flex-1 kombinációja biztosítja a görgetést */}
+                <div className="flex-1 overflow-y-auto pr-2 bg-white rounded-xl p-5 border border-gray-100 shadow-inner custom-scrollbar">
                   {(() => {
                     const activeObj = clientAllPlans.find(p => p.week_start === selectedWeek);
                     const weekPlan = activeObj && activeObj.plan_data ? JSON.parse(activeObj.plan_data) : {};
@@ -2252,9 +2268,9 @@ export default function Home() {
 
                     if (!currentDayText) {
                       return (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                          <p className="font-bold text-base sm:text-lg">Erre a napra nincs program.</p>
-                          <p className="text-xs sm:text-sm mt-1">Pihenj és regenerálódj!</p>
+                        <div className="h-full flex flex-col items-center justify-center text-gray-400 py-10">
+                          <p className="font-bold text-lg">Pihenőnap</p>
+                          <p className="text-sm">Mára nincs előírt edzésed.</p>
                         </div>
                       );
                     }
@@ -2267,7 +2283,7 @@ export default function Home() {
                   })()}
                 </div>
                 
-                <button onClick={() => setIsClientPlanModalOpen(false)} className="mt-auto w-full py-4 sm:py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition shadow-md shrink-0 text-sm">
+                <button onClick={() => setIsClientPlanModalOpen(false)} className="mt-4 w-full py-3.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-all shrink-0 text-sm shadow-md">
                   Bezárás
                 </button>
               </div>
