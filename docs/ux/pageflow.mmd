@@ -7,17 +7,21 @@ graph TD
     B -->|Sikeres Auth - Edző| D(S03 - Edző Dashboard)
     B -->|Sikeres Auth - Kliens| E(S04 - Kliens Dashboard)
 
+    %% KÖZÖS ÁG
+    D -->|Profil Tab| Q(S07 - Saját Profil)
+    E -->|Profil Tab| Q
+
     %% EDZŐI ÁG
-    D -->|Kliens listából választás| F(S05 - Kliens Adatlap & Jegyzetek)
+    D -->|Kliens listából választás| F(S05 - Kliens Adatlap)
     D -->|AI Asszisztens Tab| G(S06 - Edzői AI Analitika)
-    D -->|Saját Profil -> Prémium| H(S07 - Boosted PRO Landing)
-    D -->|Új kliens meghívása| I(♦ S08 - Meghívó Generáló Modal)
-    F -->|Részletes tervező| J(♦ S09 - Heti Edzésterv Modal)
+    D -->|Új kliens meghívása| I(♦ S08 - Meghívó Modal)
+    F -->|Részletes tervező| J(♦ S09 - Edzői Tervező Modal)
+    Q -->|Előfizetés Kezelése| H(S15 - Boosted PRO Landing)
 
     %% KLIENSI ÁG
     E -->|Napi Napló Hozzáadása| K(♦ S10 - Napi Napló Modal)
-    E -->|Napra kattintás| L(♦ S11 - Edzésterv Olvasó Modal)
+    E -->|Napra kattintás| L(♦ S11 - Kliens Terv Olvasó)
     E -->|Korábbi napló részletek| M(♦ S12 - Napi Részletek Modal)
     E -->|AI Asszisztens Tab| N(S13 - Kliens AI Analitika)
-    E -.->|Push/Értesítés edzőtől| O(♦ S14 - Boost Meglepetés Modal)
-    E -->|Saját Profil -> Edző| P(♦ S15 - Publikus Edző Profil Modal)
+    E -.->|Push/Értesítés edzőtől| O(♦ S14 - Boost Modal)
+    Q -->|Kapcsolt Szakértő| P(♦ S16 - Szakértői Profil Modal)
