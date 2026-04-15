@@ -7,6 +7,7 @@ import hashlib
 import secrets
 import json
 from datetime import datetime, timedelta
+from typing import Optional # ÚJ IMPORT
 
 # --- 1. Adatbázis Beállítás (SQLite) ---
 SQLALCHEMY_DATABASE_URL = "sqlite:///./boosted.db"
@@ -21,7 +22,6 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     password_hash = Column(String)
     
-    # ÚJ: Név szétbontva
     first_name = Column(String)
     last_name = Column(String)
     
@@ -31,12 +31,20 @@ class User(Base):
     weekly_plan = Column(String, default="{}")
     coach_notes = Column(String, default="") 
     
-    # ÚJ: Profil adatok (Klienseknek és Edzőknek is lehet, de főleg Kliens fókuszú)
+    # Eredeti Profil adatok
     height = Column(Integer, nullable=True)
     current_weight = Column(Float, nullable=True)
     goal_weight = Column(Float, nullable=True)
     primary_goal = Column(String, nullable=True)
     diet_allergies = Column(String, nullable=True)
+    
+    # ÚJ: Bővített profil és identitás adatok
+    join_date = Column(DateTime, default=datetime.utcnow) # Automatikus csatlakozási idő
+    profile_picture_url = Column(String, nullable=True) # Profilkép linkje
+    city = Column(String, nullable=True) # Város
+    bio = Column(String, nullable=True) # Bemutatkozás
+    experience_years = Column(String, nullable=True) # Tapasztalat évei
+    motivation_quote = Column(String, nullable=True) # Jelige / Motiváció
     
     # Gamifikáció oszlopok a kliensnek
     total_boosts = Column(Integer, default=0)
@@ -72,6 +80,8 @@ class WeeklyPlan(Base):
     client_id = Column(Integer, index=True)
     week_start_date = Column(Date, index=True)
     plan_data = Column(String, default="{}")
+    # ÚJ: Nehézségi szint
+    difficulty_level = Column(String, default="Közepes") 
 
 Base.metadata.create_all(bind=engine)
 
@@ -111,11 +121,17 @@ class ClientRegister(BaseModel):
 class ProfileUpdate(BaseModel):
     first_name: str
     last_name: str
-    height: int = None
-    current_weight: float = None
-    goal_weight: float = None
-    primary_goal: str = None
-    diet_allergies: str = None
+    height: Optional[int] = None
+    current_weight: Optional[float] = None
+    goal_weight: Optional[float] = None
+    primary_goal: Optional[str] = None
+    diet_allergies: Optional[str] = None
+    # ÚJ: Beküldhető opcionális mezők
+    city: Optional[str] = None
+    bio: Optional[str] = None
+    experience_years: Optional[str] = None
+    motivation_quote: Optional[str] = None
+    profile_picture_url: Optional[str] = None
 
 class DailyLogCreate(BaseModel):
     client_id: int
@@ -133,6 +149,8 @@ class DailyLogCreate(BaseModel):
 class PlanUpdate(BaseModel):
     week_start_date: str 
     plan_data: str 
+    # ÚJ: Beküldhető nehézségi szint
+    difficulty_level: str = "Közepes"
 
 class NoteUpdate(BaseModel): 
     coach_notes: str
@@ -170,7 +188,8 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Hibás email vagy jelszó!")
     
     current_plan = "{}"
-    coach_name = None 
+    coach_name = None
+    coach_data = None
 
     if db_user.role == "CLIENT":
         monday = get_monday(datetime.now().date())
@@ -182,6 +201,17 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
             coach = db.query(User).filter(User.id == db_user.coach_id).first()
             if coach:
                 coach_name = f"{coach.last_name} {coach.first_name}"
+                # ÚJ: Kinyerjük az edző publikus adatait
+                coach_data = {
+                    "city": coach.city,
+                    "bio": coach.bio,
+                    "experience_years": coach.experience_years,
+                    "motivation_quote": coach.motivation_quote,
+                    "join_date": coach.join_date.strftime("%Y.%m.%d") if coach.join_date else None,
+                    "profile_picture_url": coach.profile_picture_url
+                }
+
+    join_date_str = db_user.join_date.strftime("%Y.%m.%d") if db_user.join_date else None
 
     return {
         "message": "Sikeres belépés!", 
@@ -195,15 +225,23 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "total_boosts": db_user.total_boosts,
         "has_unseen_boost": db_user.has_unseen_boost,
         "coach_name": coach_name,
+        "coach_data": coach_data,
         # Profil adatok visszaadása
         "height": db_user.height,
         "current_weight": db_user.current_weight,
         "goal_weight": db_user.goal_weight,
         "primary_goal": db_user.primary_goal,
-        "diet_allergies": db_user.diet_allergies
+        "diet_allergies": db_user.diet_allergies,
+        # ÚJ MEZŐK:
+        "join_date": join_date_str,
+        "city": db_user.city,
+        "bio": db_user.bio,
+        "experience_years": db_user.experience_years,
+        "motivation_quote": db_user.motivation_quote,
+        "profile_picture_url": db_user.profile_picture_url
     }
 
-# ÚJ VÉGPONT: Profil frissítése
+# Profil frissítése (JAVÍTVA)
 @app.put("/api/user/{user_id}/profile")
 def update_profile(user_id: int, profile: ProfileUpdate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -217,6 +255,13 @@ def update_profile(user_id: int, profile: ProfileUpdate, db: Session = Depends(g
     user.goal_weight = profile.goal_weight
     user.primary_goal = profile.primary_goal
     user.diet_allergies = profile.diet_allergies
+    
+    # ÚJ MEZŐK MENTÉSE:
+    if profile.city is not None: user.city = profile.city
+    if profile.bio is not None: user.bio = profile.bio
+    if profile.experience_years is not None: user.experience_years = profile.experience_years
+    if profile.motivation_quote is not None: user.motivation_quote = profile.motivation_quote
+    if profile.profile_picture_url is not None: user.profile_picture_url = profile.profile_picture_url
     
     db.commit()
     return {"message": "Profil sikeresen frissítve!"}
@@ -268,13 +313,20 @@ def get_coach_clients(coach_id: int, db: Session = Depends(get_db)):
     for c in clients:
         plan = db.query(WeeklyPlan).filter(WeeklyPlan.client_id == c.id, WeeklyPlan.week_start_date == monday).first()
         plan_data = plan.plan_data if plan else "{}"
+        
+        # JAVÍTÁS: Küldjük vissza a profilkép, város, csatlakozási dátum és terv nehézség adatokat is
         result.append({
             "id": c.id, 
             "first_name": c.first_name,
             "last_name": c.last_name,
             "email": c.email, 
-            "weekly_plan": plan_data, "coach_notes": c.coach_notes,
-            "total_boosts": c.total_boosts 
+            "weekly_plan": plan_data, 
+            "coach_notes": c.coach_notes,
+            "total_boosts": c.total_boosts,
+            "join_date": c.join_date.strftime("%Y.%m.%d") if c.join_date else None,
+            "city": c.city,
+            "profile_picture_url": c.profile_picture_url,
+            "weekly_plan_difficulty": plan.difficulty_level if plan else "Közepes"
         })
         
     return result
@@ -320,7 +372,8 @@ def get_client_logs(client_id: int, db: Session = Depends(get_db)):
 @app.get("/api/client/{client_id}/plans")
 def get_client_plans(client_id: int, db: Session = Depends(get_db)):
     plans = db.query(WeeklyPlan).filter(WeeklyPlan.client_id == client_id).order_by(WeeklyPlan.week_start_date.desc()).all()
-    return [{"week_start": p.week_start_date.strftime("%Y-%m-%d"), "plan_data": p.plan_data} for p in plans]
+    # ÚJ: A nehézségi szintet is visszaadjuk a kliensnek
+    return [{"week_start": p.week_start_date.strftime("%Y-%m-%d"), "plan_data": p.plan_data, "difficulty_level": p.difficulty_level} for p in plans]
 
 @app.put("/api/client/{client_id}/plan")
 def update_client_plan(client_id: int, plan: PlanUpdate, db: Session = Depends(get_db)):
@@ -335,8 +388,9 @@ def update_client_plan(client_id: int, plan: PlanUpdate, db: Session = Depends(g
     
     if existing_plan:
         existing_plan.plan_data = plan.plan_data
+        existing_plan.difficulty_level = plan.difficulty_level # JAVÍTÁS
     else:
-        new_plan = WeeklyPlan(client_id=client_id, week_start_date=week_start, plan_data=plan.plan_data)
+        new_plan = WeeklyPlan(client_id=client_id, week_start_date=week_start, plan_data=plan.plan_data, difficulty_level=plan.difficulty_level)
         db.add(new_plan)
         
     db.commit()

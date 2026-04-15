@@ -22,7 +22,12 @@ export default function Home() {
     currentWeight: "",
     goalWeight: "",
     primaryGoal: "",
-    dietAllergies: ""
+    dietAllergies: "",
+    city: "",
+    bio: "",
+    experienceYears: "",
+    motivationQuote: "",
+    joinDate: ""
   });
 
   const [boostedClientsToday, setBoostedClientsToday] = useState({});
@@ -123,6 +128,8 @@ export default function Home() {
   const [hasUnseenBoost, setHasUnseenBoost] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [assignedCoachName, setAssignedCoachName] = useState("");
+
+  const [assignedCoachData, setAssignedCoachData] = useState(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [clientEmail, setClientEmail] = useState("");
@@ -291,7 +298,11 @@ export default function Home() {
         current_weight: profileData.currentWeight ? parseFloat(profileData.currentWeight.toString().replace(',', '.')) : null,
         goal_weight: profileData.goalWeight ? parseFloat(profileData.goalWeight.toString().replace(',', '.')) : null,
         primary_goal: profileData.primaryGoal,
-        diet_allergies: profileData.dietAllergies
+        diet_allergies: profileData.dietAllergies,
+        city: profileData.city,
+        bio: profileData.bio,
+        experience_years: profileData.experienceYears,
+        motivation_quote: profileData.motivationQuote
       };
 
       const res = await fetch(`http://localhost:8000/api/user/${userId}/profile`, {
@@ -571,14 +582,21 @@ export default function Home() {
           firstName: data.first_name || "", lastName: data.last_name || "",
           height: data.height || "", currentWeight: data.current_weight || "",
           goalWeight: data.goal_weight || "", primaryGoal: data.primary_goal || "",
-          dietAllergies: data.diet_allergies || ""
+          dietAllergies: data.diet_allergies || "",
+          city: data.city || "",
+          bio: data.bio || "",
+          experienceYears: data.experience_years || "",
+          motivationQuote: data.motivation_quote || "",
+          joinDate: data.join_date || "Ismeretlen"
         });
         
         if (data.role === "CLIENT") {
+          setAssignedCoachName(data.coach_name || "Szakértőd");
            setClientWeeklyPlan(data.weekly_plan ? JSON.parse(data.weekly_plan) : {});
            setTotalBoosts(data.total_boosts || 0);
            setHasUnseenBoost(data.has_unseen_boost || false);
-           setAssignedCoachName(data.coach_name || "Szakértőd"); 
+           setAssignedCoachName(data.coach_name || "Szakértőd");
+           setAssignedCoachData(data.coach_data || null);
         }
 
         setCurrentTab("overview"); 
@@ -1167,7 +1185,7 @@ export default function Home() {
                         </h1>
                         <div className="flex flex-col gap-1.5 text-sm text-gray-600 font-medium">
                           <span className="flex items-center text-gray-500">{selectedClient.email}</span>
-                          <span className="flex items-center text-gray-400 text-xs uppercase tracking-wider font-bold">Csatlakozott: 2026. Március</span>
+                          <span className="flex items-center text-gray-400 text-xs uppercase tracking-wider font-bold">Csatlakozott: {selectedClient.join_date || "2026.03.14"}</span>
                           <div className="flex flex-wrap gap-2 mt-1">
                             <span className="inline-flex items-center text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-widest shadow-sm">
                               Aktív Kliens
@@ -1642,7 +1660,7 @@ export default function Home() {
                       <div className="space-y-4">
                         <div className="flex justify-between items-center pb-4 border-b border-gray-100">
                           <span className="text-gray-600">Csatlakozás</span>
-                          <span className="font-bold text-gray-900">2026.03.14</span>
+                          <span className="font-bold text-gray-900">{profileData.joinDate || "-"}</span>
                         </div>
                         <div className="flex justify-between items-center pb-4 border-b border-gray-100">
                           <span className="text-gray-600">Aktív kliensek</span>
@@ -1660,7 +1678,7 @@ export default function Home() {
                       <div className="space-y-4">
                         <div className="flex justify-between items-center pb-4 border-b border-gray-100">
                           <span className="text-gray-600">Regisztráció</span>
-                          <span className="font-bold text-gray-900">2026.04.04</span>
+                          <span className="font-bold text-gray-900">{profileData.joinDate || "-"}</span>
                         </div>
                         <div className="flex justify-between items-center pb-4 border-b border-gray-100">
                           <span className="text-gray-600">Naplózások</span>
@@ -1838,32 +1856,56 @@ export default function Home() {
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 animate-fade-in-up">
                       <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-gray-900">Bemutatkozás</h3>
-                        <span className="text-[10px] bg-blue-50 text-blue-600 font-bold px-2 py-1 rounded border border-blue-100 uppercase tracking-wider">Hamarosan szerkeszthető</span>
+                        {isEditingProfile && <span className="text-[10px] bg-purple-50 text-purple-600 font-bold px-2 py-1 rounded border border-purple-100 uppercase tracking-wider">Szerkesztés alatt</span>}
                       </div>
                       
                       <div className="space-y-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Város / Helyszín</label>
+                            {isEditingProfile ? (
+                              <input type="text" placeholder="Pl.: Budapest, vagy Online" className={inputStyle} value={profileData.city} onChange={(e) => setProfileData({...profileData, city: e.target.value})} />
+                            ) : (
+                              <p className="text-sm font-bold text-gray-800 bg-gray-50/50 p-3 rounded-xl border border-gray-100 inline-flex items-center min-h-[46px] w-full">
+                                <span className="mr-2">📍</span> {profileData.city || "Nincs megadva város"}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Szakmai tapasztalat</label>
+                            {isEditingProfile ? (
+                              <input type="text" placeholder="Pl.: 5+ év" className={inputStyle} value={profileData.experienceYears} onChange={(e) => setProfileData({...profileData, experienceYears: e.target.value})} />
+                            ) : (
+                              <p className="text-sm font-bold text-gray-800 bg-gray-50/50 p-3 rounded-xl border border-gray-100 inline-flex items-center min-h-[46px] w-full">
+                                <span className="mr-2">⏳</span> {profileData.experienceYears ? `${profileData.experienceYears} a szakmában` : "Nincs megadva tapasztalat"}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
                         <div>
                           <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Rólam / Mivel foglalkozom</label>
-                          <p className="text-sm text-gray-700 bg-gray-50/50 p-4 rounded-xl border border-gray-100 leading-relaxed font-medium">
-                            Célom, hogy segítsek a klienseimnek elérni a legjobb formájukat, nemcsak fizikailag, hanem mentálisan is. Fő profilom a funkcionális edzés és az életmódváltás támogatása. Hiszem, hogy a fenntartható eredményekhez a tudatos táplálkozás és a következetesség elengedhetetlen.
-                          </p>
-                        </div>
-                        
-                        <div>
-                          <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Szakmai tapasztalat</label>
-                          <p className="text-sm font-bold text-gray-800 bg-gray-50/50 p-3 rounded-xl border border-gray-100 inline-flex items-center">
-                            <span className="mr-2">⏳</span> Több mint 5 éve a szakmában
-                          </p>
+                          {isEditingProfile ? (
+                            <textarea rows="4" placeholder="Írj pár mondatot a szakmai hátteredről..." className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-bold text-gray-800 resize-none transition-all" value={profileData.bio} onChange={(e) => setProfileData({...profileData, bio: e.target.value})} />
+                          ) : (
+                            <p className="text-sm text-gray-700 bg-gray-50/50 p-4 rounded-xl border border-gray-100 leading-relaxed font-medium min-h-[100px]">
+                              {profileData.bio || "Még nem írtál bemutatkozást. Kattints a Profil Szerkesztése gombra fent!"}
+                            </p>
+                          )}
                         </div>
 
                         <div>
                           <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Fő motivációm / Jeligém</label>
-                          <div className="bg-gradient-to-r from-orange-50/50 to-pink-50/50 p-4 rounded-xl border border-orange-100 flex items-start shadow-sm">
-                            <span className="text-xl mr-3 mt-0.5">🔥</span>
-                            <p className="text-sm leading-relaxed font-semibold italic text-gray-800">
-                              &quot;A legnagyobb siker számomra az, amikor egy kliensem rájön, hogy sokkal többre képes, mint amit valaha is el tudott képzelni magáról.&quot;
-                            </p>
-                          </div>
+                          {isEditingProfile ? (
+                            <input type="text" placeholder="Pl.: A legnagyobb siker számomra..." className={inputStyle} value={profileData.motivationQuote} onChange={(e) => setProfileData({...profileData, motivationQuote: e.target.value})} />
+                          ) : (
+                            <div className="bg-gradient-to-r from-orange-50/50 to-pink-50/50 p-4 rounded-xl border border-orange-100 flex items-start shadow-sm min-h-[70px]">
+                              <span className="text-xl mr-3 mt-0.5">🔥</span>
+                              <p className="text-sm leading-relaxed font-semibold italic text-gray-800">
+                                {profileData.motivationQuote ? `"${profileData.motivationQuote}"` : "Még nincs megadva jelige."}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2462,7 +2504,7 @@ export default function Home() {
         )}
 
         {/* ========================================== */}
-        {/* ÚJ: PUBLIKUS EDZŐI PROFIL MODAL (NAGYOBB & BŐVÍTETT) */}
+        {/* ÚJ: PUBLIKUS EDZŐI PROFIL MODAL (DINAMIKUS)  */}
         {/* ========================================== */}
         {isCoachProfileModalOpen && !isCoach && (
           <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md flex items-center justify-center z-[120] p-4 sm:p-6">
@@ -2484,8 +2526,14 @@ export default function Home() {
                   <div className="relative z-10 w-full">
                     <span className="inline-block bg-blue-100 text-blue-700 text-[10px] lg:text-xs font-extrabold px-3 py-1.5 rounded-lg border border-blue-200 uppercase tracking-widest shadow-sm mb-4">Hitelesített Szakértő</span>
                     <h2 className="text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight mb-2">{assignedCoachName || "Szakértőd"}</h2>
-                    <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Személyi Edző</p>
+                    <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Személyi Edző</p>
                     
+                    {/* DINAMIKUS VÁROS ÉS DÁTUM */}
+                    <div className="flex flex-col gap-2 items-center justify-center text-sm font-medium text-gray-600">
+                      <span className="flex items-center"><span className="mr-1.5"></span>{assignedCoachData?.city || "Nincs megadva"}</span>
+                      <span className="flex items-center"><span className="mr-1.5"></span> Platform tagja: {assignedCoachData?.join_date || "-"}</span>
+                    </div>
+
                     <div className="mt-8 pt-8 border-t border-gray-200 w-full">
                       <button onClick={() => setIsCoachProfileModalOpen(false)} className="w-full py-3.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-all text-sm shadow-sm hidden md:block">
                         Vissza a profilomhoz
@@ -2501,8 +2549,9 @@ export default function Home() {
                       <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2">
                          Szakmai Bemutatkozás
                       </h3>
-                      <p className="text-sm sm:text-base text-gray-600 leading-relaxed font-medium bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
-                        Célom, hogy segítsek a klienseimnek elérni a legjobb formájukat, nemcsak fizikailag, hanem mentálisan is. Fő profilom a funkcionális edzés és az életmódváltás támogatása. Az edzéseimen a precíz kivitelezésre és a fenntartható fejlődésre fókuszálunk, mert hiszem, hogy a minőség mindig megelőzi a mennyiséget.
+                      {/* DINAMIKUS BEMUTATKOZÁS */}
+                      <p className="text-sm sm:text-base text-gray-600 leading-relaxed font-medium bg-gray-50/50 p-6 rounded-2xl border border-gray-100 whitespace-pre-wrap">
+                        {assignedCoachData?.bio || "A szakértő még nem írt bemutatkozást."}
                       </p>
                     </div>
                     
@@ -2511,14 +2560,15 @@ export default function Home() {
                         <div className="flex items-center gap-2 mb-2">
                            <span className="text-[10px] lg:text-xs font-bold text-blue-600 uppercase tracking-wider">Tapasztalat</span>
                         </div>
-                        <span className="text-3xl font-extrabold text-gray-900">5+ év</span>
+                        {/* DINAMIKUS TAPASZTALAT */}
+                        <span className="text-3xl font-extrabold text-gray-900">{assignedCoachData?.experience_years || "-"}</span>
                       </div>
                       
                       <div className="bg-emerald-50/30 p-6 rounded-2xl border border-emerald-100 flex flex-col items-center sm:items-start justify-center hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-2 mb-2">
                            <span className="text-[10px] lg:text-xs font-bold text-emerald-600 uppercase tracking-wider">Kliensek</span>
                         </div>
-                        <span className="text-3xl font-extrabold text-gray-900">40+</span>
+                        <span className="text-3xl font-extrabold text-gray-900">Aktív</span>
                       </div>
 
                       <div className="bg-orange-50/30 p-6 rounded-2xl border border-orange-100 flex flex-col items-center sm:items-start justify-center hover:shadow-md transition-shadow">
@@ -2533,10 +2583,11 @@ export default function Home() {
                       <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2">
                          Fő motivációm
                       </h3>
+                      {/* DINAMIKUS MOTIVÁCIÓ */}
                       <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-8 rounded-2xl flex items-start shadow-xl relative overflow-hidden">
                         <div className="absolute right-0 top-0 text-9xl opacity-5 -mt-6 -mr-6 pointer-events-none transform rotate-12">🔥</div>
                         <p className="text-sm sm:text-base leading-relaxed font-medium italic text-gray-100 relative z-10 pr-4">
-                          A legnagyobb siker számomra az, amikor egy kliensem rájön, hogy sokkal többre képes, mint amit valaha is el tudott képzelni magáról. A határaink csak ott vannak, ahová mi magunk húzzuk meg őket.
+                          {assignedCoachData?.motivation_quote ? `"${assignedCoachData.motivation_quote}"` : "A legnagyobb siker számomra a klienseim fejlődése."}
                         </p>
                       </div>
                     </div>
