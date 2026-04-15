@@ -15,6 +15,8 @@ export default function Home() {
   const [isClientAiView, setIsClientAiView] = useState(false);
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isProfilePicModalOpen, setIsProfilePicModalOpen] = useState(false);
+  const [tempPicUrl, setTempPicUrl] = useState("");
   const [profileData, setProfileData] = useState({
     firstName: "",
     lastName: "",
@@ -27,7 +29,8 @@ export default function Home() {
     bio: "",
     experienceYears: "",
     motivationQuote: "",
-    joinDate: ""
+    joinDate: "",
+    profilePictureUrl: ""
   });
 
   const [boostedClientsToday, setBoostedClientsToday] = useState({});
@@ -281,12 +284,20 @@ export default function Home() {
         console.error("Hiba az adatok lekérésekor:", error);
         triggerAlert("Hiba történt az adatok betöltésekor.", "error");
       } finally {
-        setIsPageLoading(false); // 2. Töltőképernyő kikapcsolása
+        setIsPageLoading(false);
       }
     };
 
     loadDashboardData();
   }, [view, userRole, coachId, userId]);
+
+  const getValidImageUrl = (url) => {
+    if (!url) return "";
+    if (url.includes("imgur.com") && !url.includes("i.imgur.com") && !url.match(/\.(jpeg|jpg|gif|png)$/i)) {
+      return url.replace("imgur.com", "i.imgur.com") + ".png";
+    }
+    return url;
+  };
 
   const handleUpdateProfile = async () => {
     setIsActionLoading(true);
@@ -302,7 +313,8 @@ export default function Home() {
         city: profileData.city,
         bio: profileData.bio,
         experience_years: profileData.experienceYears,
-        motivation_quote: profileData.motivationQuote
+        motivation_quote: profileData.motivationQuote,
+        profile_picture_url: profileData.profilePictureUrl
       };
 
       const res = await fetch(`http://localhost:8000/api/user/${userId}/profile`, {
@@ -587,7 +599,8 @@ export default function Home() {
           bio: data.bio || "",
           experienceYears: data.experience_years || "",
           motivationQuote: data.motivation_quote || "",
-          joinDate: data.join_date || "Ismeretlen"
+          joinDate: data.join_date || "Ismeretlen",
+          profilePictureUrl: data.profile_picture_url || ""
         });
         
         if (data.role === "CLIENT") {
@@ -1608,11 +1621,34 @@ export default function Home() {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6">
                 <div className={`h-32 bg-gradient-to-r ${themeGradient} w-full relative`}></div>
                 <div className="px-8 pb-8 flex flex-col sm:flex-row items-center sm:items-start relative -mt-16">
-                  <div className="h-32 w-32 bg-white rounded-full p-1 shadow-lg shrink-0 relative z-10">
-                    <div className="h-full w-full bg-gray-100 rounded-full flex items-center justify-center text-5xl font-extrabold text-gray-400">
-                      {loggedInLastName ? loggedInLastName.charAt(0).toUpperCase() : "U"}
-                    </div>
+                  <div className="h-32 w-32 bg-white rounded-full p-1 shadow-lg shrink-0 relative z-10 group">
+                  {/* Ha szerkesztés módban vagyunk, a kurzor átvált, és kattintható lesz */}
+                  <div 
+                    className={`relative h-full w-full rounded-full overflow-hidden ${isEditingProfile ? "cursor-pointer" : ""}`}
+                    onClick={() => {
+                      if (isEditingProfile) {
+                        setTempPicUrl(profileData.profilePictureUrl || "");
+                        setIsProfilePicModalOpen(true);
+                      }
+                    }}
+                  >
+                    {profileData.profilePictureUrl ? (
+                      <img src={getValidImageUrl(profileData.profilePictureUrl)} alt="Profilkép" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full bg-gray-100 flex items-center justify-center text-5xl font-extrabold text-gray-400">
+                        {loggedInLastName ? loggedInLastName.charAt(0).toUpperCase() : "U"}
+                      </div>
+                    )}
+                    
+                    {/* Hover effektus: Sötétítő réteg és kamera ikon CSAK szerkesztéskor */}
+                    {isEditingProfile && (
+                      <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <svg className="w-8 h-8 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        <span className="text-[10px] font-bold text-white uppercase tracking-widest">Kép cseréje</span>
+                      </div>
+                    )}
                   </div>
+                </div>
                   <div className="mt-4 sm:mt-20 sm:ml-6 text-center sm:text-left flex-1">
                     <h2 className="text-3xl font-extrabold text-gray-900">{loggedInUser}</h2>
                     <p className="text-gray-500 font-medium">{isCoach ? (userSpecialization || "Személyi Edző") : "Boosted Kliens"}</p>
@@ -2518,9 +2554,13 @@ export default function Home() {
                   <div className="absolute inset-0 bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none"></div>
                   
                   <div className="h-36 w-36 lg:h-40 lg:w-40 bg-white rounded-full p-2 shadow-xl relative z-10 mb-6">
-                    <div className="h-full w-full bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-6xl font-extrabold text-white">
-                      {assignedCoachName ? assignedCoachName.charAt(0).toUpperCase() : "E"}
-                    </div>
+                    {assignedCoachData?.profile_picture_url ? (
+                      <img src={assignedCoachData.profile_picture_url} alt="Edző" className="h-full w-full object-cover rounded-full" />
+                    ) : (
+                      <div className="h-full w-full bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-6xl font-extrabold text-white">
+                        {assignedCoachName ? assignedCoachName.charAt(0).toUpperCase() : "E"}
+                      </div>
+                    )}
                   </div>
                   
                   <div className="relative z-10 w-full">
@@ -2633,6 +2673,54 @@ export default function Home() {
               >
                 Király!
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* ÚJ: PROFILKÉP SZERKESZTŐ MODAL               */}
+        {/* ========================================== */}
+        {isProfilePicModalOpen && (
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-opacity">
+            <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md relative animate-fade-in-up border border-gray-100">
+              <button onClick={() => setIsProfilePicModalOpen(false)} className="absolute top-5 right-6 text-gray-400 hover:text-gray-800 transition-colors text-3xl font-light leading-none">×</button>
+              
+              <div className="mb-6 pr-8">
+                <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1.5">Kinézet módosítása</p>
+                <h3 className="text-2xl font-extrabold text-gray-900 tracking-tight">Profilkép beállítása</h3>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-6 font-medium leading-relaxed">
+                Másold be ide a képed webes linkjét (pl. egy Imgur linket), hogy lecseréld az alapértelmezett avatárt.
+              </p>
+              
+              <div className="mb-8">
+                <input 
+                  type="text" 
+                  placeholder="https://i.imgur.com/..." 
+                  className={inputStyle} 
+                  value={tempPicUrl} 
+                  onChange={(e) => setTempPicUrl(e.target.value)} 
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setIsProfilePicModalOpen(false)} 
+                  className="flex-1 py-3.5 bg-gray-100 text-gray-800 font-bold rounded-xl hover:bg-gray-200 transition text-sm"
+                >
+                  Mégse
+                </button>
+                <button 
+                  onClick={() => {
+                    setProfileData({ ...profileData, profilePictureUrl: tempPicUrl });
+                    setIsProfilePicModalOpen(false);
+                  }} 
+                  className="flex-1 py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md text-sm"
+                >
+                  Kép mentése
+                </button>
+              </div>
             </div>
           </div>
         )}
