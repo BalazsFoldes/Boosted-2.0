@@ -2060,14 +2060,15 @@ export default function Home() {
         {/* --- EDZŐ: RÉSZLETES TERVEZŐ MODAL --- */}
         {isPlanModalOpen && isCoach && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
-            <div className="bg-white p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col md:flex-row gap-4 sm:gap-8 h-[90vh] md:h-auto md:max-h-[90vh] overflow-hidden">
+            {/* JAVÍTÁS: Fix magasság md:h-[85vh], hogy ne nyúljon ki a képernyőből */}
+            <div className="bg-white p-5 sm:p-8 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-5xl relative animate-fade-in-up flex flex-col md:flex-row gap-4 sm:gap-8 h-[90vh] md:h-[85vh] overflow-hidden">
               
               <button onClick={() => setIsPlanModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-3xl font-light z-20 leading-none bg-white/80 rounded-full w-10 h-10 flex items-center justify-center backdrop-blur-sm">×</button>
               
-              {/* Bal oldali sáv: Idővonal (Mobilon vízszintes, gépen függőleges) */}
+              {/* Bal oldali sáv: Idővonal */}
               <div className="md:w-1/3 border-b md:border-b-0 md:border-r border-gray-100 pb-4 md:pb-0 md:pr-6 flex flex-col shrink-0">
-                <div className="pr-12"> {/* Hely a bezárás gombnak mobilon */}
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-1">Idővonal</h2>
+                <div className="pr-12">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-1 mt-1 md:mt-0">Idővonal</h2>
                   <p className="text-xs sm:text-sm text-gray-500 mb-4">Kattints a napra a szerkesztéshez!</p>
                 </div>
                 
@@ -2077,15 +2078,14 @@ export default function Home() {
                   <button onClick={() => changeWeek(7)} className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white shadow-sm text-blue-700 font-bold hover:bg-blue-100 transition">→</button>
                 </div>
 
-                {/* Vízszintes görgetés mobilon, függőleges asztalin */}
-                <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto gap-3 md:gap-0 md:space-y-3 pb-2 md:pb-4 flex-1 snap-x scrollbar-hide -mx-5 px-5 md:mx-0 md:px-0">
+                <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto gap-3 md:gap-2 pb-2 md:pb-4 flex-1 snap-x scrollbar-hide -mx-5 px-5 md:mx-0 md:px-0">
                   {daysOfWeek.map((day, idx) => {
                     const isActive = planDay === day;
                     return (
                       <div 
                         key={day} 
                         onClick={() => setPlanDay(day)}
-                        className={`p-3 sm:p-4 rounded-xl border cursor-pointer transition-all shrink-0 w-[75vw] sm:w-[250px] md:w-auto snap-center ${
+                        className={`p-3 sm:p-4 rounded-xl border cursor-pointer transition-all shrink-0 w-[70vw] sm:w-[250px] md:w-auto snap-center ${
                           isActive 
                           ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200" 
                           : "border-gray-200 bg-white hover:bg-gray-50 hover:border-blue-300"
@@ -2095,9 +2095,10 @@ export default function Home() {
                           <span className={`font-extrabold text-sm sm:text-base ${isActive ? "text-blue-700" : "text-gray-700"}`}>
                             {day} <span className="text-gray-400 font-normal text-xs ml-1">({getDayDateLabel(selectedWeek, idx)})</span>
                           </span>
-                          {isActive && <span className="text-blue-600 text-[10px] sm:text-xs font-bold bg-blue-100 px-2 py-1 rounded hidden sm:inline-block">Szerkesztés</span>}
+                          {isActive && <span className="text-blue-600 text-[10px] font-bold bg-blue-100 px-2 py-1 rounded hidden sm:inline-block">Szerkesztés</span>}
                         </div>
-                        <span className={`block text-xs sm:text-sm line-clamp-2 ${modalWeeklyPlan[day] ? "text-gray-800" : "text-gray-400 italic"}`}>
+                        {/* JAVÍTÁS: Csak 1 sorban látszódjon a rövidítő a letisztultabb kinézetért */}
+                        <span className={`block text-[10px] sm:text-xs line-clamp-1 mt-0.5 ${modalWeeklyPlan[day] ? "text-gray-500" : "text-gray-400 italic"}`}>
                           {modalWeeklyPlan[day] || "Nincs program rögzítve"}
                         </span>
                       </div>
@@ -2106,10 +2107,11 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Jobb oldali sáv: Szerkesztő */}
-              <div className="flex-1 flex flex-col h-full overflow-hidden">
+              {/* Jobb oldali sáv: Szerkesztő (Kliens stílusú doboz) */}
+              <div className="flex-1 flex flex-col h-full bg-gray-50/80 rounded-2xl p-4 sm:p-6 border border-gray-100 relative overflow-hidden">
                 <div className="mb-3 shrink-0">
                   <h2 className="text-xl sm:text-2xl font-extrabold text-blue-600 mb-1">{planDay}</h2>
+                  <p className="text-xs sm:text-sm text-gray-500">Tervezd meg a kliens napi programját!</p>
                 </div>
 
                 <div className="mb-4 shrink-0">
@@ -2119,27 +2121,31 @@ export default function Home() {
                       type="time" 
                       value={planStartTime} 
                       onChange={e => setPlanStartTime(e.target.value)} 
-                      className="w-full border border-gray-300 p-2.5 sm:p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xs sm:text-sm font-bold text-gray-700 bg-white" 
+                      // JAVÍTÁS: Kék gyűrű levéve, focus esetén a border sötétül
+                      className="w-full border border-gray-200 p-2.5 sm:p-3 rounded-xl outline-none focus:border-gray-400 text-xs sm:text-sm font-bold text-gray-700 bg-white transition-colors" 
                     />
                     <span className="font-bold text-gray-400">-</span>
                     <input 
                       type="time" 
                       value={planEndTime} 
                       onChange={e => setPlanEndTime(e.target.value)} 
-                      className="w-full border border-gray-300 p-2.5 sm:p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xs sm:text-sm font-bold text-gray-700 bg-white" 
+                      className="w-full border border-gray-200 p-2.5 sm:p-3 rounded-xl outline-none focus:border-gray-400 text-xs sm:text-sm font-bold text-gray-700 bg-white transition-colors" 
                     />
                   </div>
                 </div>
                 
-                <div className="flex-1 flex flex-col mb-4 min-h-[150px]">
+                {/* JAVÍTÁS: Fix konténer, ami kitölti a helyet és görgethető magát a textarea-t tartja */}
+                <div className="flex-1 flex flex-col min-h-0 mb-4 bg-white rounded-xl border border-gray-200 overflow-hidden shadow-inner focus-within:border-gray-400 transition-colors">
                   <textarea 
                     placeholder="Pl.: Felsőtest edzés + 20 perc séta..."
                     value={planText} onChange={(e) => setPlanText(e.target.value)}
-                    className="flex-1 w-full border border-gray-300 p-4 sm:p-5 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 focus:bg-white text-gray-900 text-sm resize-none transition"
+                    // JAVÍTÁS: Nincs kék gyűrű, 100% magasság a konténeren belül, saját görgetősáv a szövegnek
+                    className="flex-1 w-full h-full p-4 sm:p-5 outline-none text-gray-800 text-sm sm:text-base font-medium resize-none custom-scrollbar bg-transparent"
                   ></textarea>
                 </div>
-                <button disabled={isActionLoading} onClick={handleSaveDayPlan} className="w-full py-4 sm:py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md shrink-0 text-sm disabled:opacity-50">
-                  {isActionLoading ? "Mentés..." : "Mentés"}
+
+                <button disabled={isActionLoading} onClick={handleSaveDayPlan} className="mt-auto w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-md shrink-0 text-sm disabled:opacity-50">
+                  {isActionLoading ? "Mentés..." : "Terv Mentése"}
                 </button>
               </div>
             </div>
