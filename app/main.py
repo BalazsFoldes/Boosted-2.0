@@ -7,13 +7,21 @@ import hashlib
 import secrets
 import json
 from datetime import datetime, timedelta
-from typing import Optional # ÚJ IMPORT
+from typing import Optional
+import google.generativeai as genai
 
 # --- 1. Adatbázis Beállítás (SQLite) ---
 SQLALCHEMY_DATABASE_URL = "sqlite:///./boosted.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# --- 1.5 Gemini AI ---
+GEMINI_API_KEY = "AIzaSyBEoJGgd9eUvUqTHWBWi4g17pa3Sm46ymA" 
+genai.configure(api_key=GEMINI_API_KEY)
+
+
+
 
 # --- 2. Modellek ---
 class User(Base):
@@ -154,6 +162,19 @@ class PlanUpdate(BaseModel):
 
 class NoteUpdate(BaseModel): 
     coach_notes: str
+
+
+class ChatMessageItem(BaseModel):
+    role: str # "user" vagy "assistant"
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessageItem]
+    user_type: str # "COACH" vagy "CLIENT", hogy az AI tudja, kivel beszél
+
+class AIDashboardRequest(BaseModel):
+    user_type: str
+    context_data: str
 
 def get_db():
     db = SessionLocal()
@@ -522,3 +543,83 @@ def get_coach_dashboard_stats(coach_id: int, db: Session = Depends(get_db)):
         "average_stress": avg_stress,
         "alerts": alerts
     }
+
+
+# ==========================================
+# ÚJ: ÁLTALÁNOS AI CHAT ASSZISZTENS (GEMINI)
+# ==========================================
+@app.post("/api/chat")
+def chat_with_ai(req: ChatRequest):
+    # 1. Személyiség (System Prompt) beállítása szerepkör alapján
+    if req.user_type == "COACH":
+        system_instruction = "Te egy szuperintelligens szakmai asszisztens vagy személyi edzők számára a Boosted platformon. Tegeződj. Segítesz edzésterveket írni, anatómiát elemezni, táplálkozási makrókat számolni és kliens-stratégiákat alkotni. Légy lényegretörő és szakmai."
+    else:
+        system_instruction = "Te egy motiváló AI edző és életmód tanácsadó vagy a Boosted platformon. Tegeződj. Segítesz a klienseknek a fitnesz céljaik elérésében, táplálkozási tippeket adsz és motiválod őket. Légy barátságos, empatikus, és adj gyakorlatias tippeket."
+
+    try:
+        # 2. Modell inicializálása a rendszer-utasítással
+        model = genai.GenerativeModel(
+            model_name="gemini-2.5-flash",
+            system_instruction=system_instruction,
+            generation_config={"response_mime_type": "application/json"}
+        )
+
+        # 3. Beszélgetési előzmények (history) formázása a Gemini számára
+        # A frontend "assistant"-et küld, de a Gemini "model"-t használ.
+        formatted_history = []
+        
+        # Ha van előzmény, az utolsó üzenet KIVÉTELÉVEL mindent a history-ba rakunk
+        if len(req.messages) > 1:
+            for msg in req.messages[:-1]:
+                role = "model" if msg.role == "assistant" else "user"
+                formatted_history.append({"role": role, "parts": [msg.content]})
+
+        # Az utolsó üzenet az, amit most küldött a felhasználó
+        last_user_message = req.messages[-1].content
+
+        # 4. Chat indítása és üzenet küldése
+        chat = model.start_chat(history=formatted_history)
+        response = chat.send_message(last_user_message)
+        
+        return {"reply": response.text}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gemini AI Hiba: {str(e)}")
+    
+    
+
+# ==========================================
+# ÚJ: DINAMIKUS AI DASHBOARD GENERÁLÓ (GEMINI 2.5 FLASH)
+# ==========================================
+@app.post("/api/generate-ai-dashboard")
+def generate_ai_dashboard(req: AIDashboardRequest):
+    system_instruction = (
+        "Te egy profi fitnesz adatelemző AI vagy a Boosted platformon. "
+        "A válaszod KIZÁRÓLAG egy érvényes JSON objektum lehet, mindenféle markdown jelölés (pl. ```json) nélkül. "
+        "A JSON struktúra pontosan a következő mezőkből álljon: "
+        "card1_title, card1_text, card1_action, "
+        "card2_title, card2_text, card2_action, "
+        "card3_title, card3_text, card3_action, "
+        "summary_title, summary_text. "
+        "A szövegek magyar nyelvűek, lényegretörőek és szakmaiak legyenek."
+    )
+    
+    role_desc = "edzőnek a klienseiről" if req.user_type == "COACH" else "kliensnek a saját fejlődéséről"
+    prompt = f"Készíts elemzést egy {role_desc}. Itt vannak a valós adatok: {req.context_data}. "
+
+    try:
+        # A listádból a legújabb, villámgyors modellt használjuk!
+        model = genai.GenerativeModel(
+            model_name="gemini-2.5-flash", 
+            system_instruction=system_instruction,
+            generation_config={"response_mime_type": "application/json"}
+        )
+
+        response = model.generate_content(prompt)
+        
+        # A kapott szöveget JSON-né alakítjuk és visszaküldjük a frontendnek
+        return json.loads(response.text)
+        
+    except Exception as e:
+        print(f"Hiba az AI generálás során: {str(e)}")
+        raise HTTPException(status_code=500, detail="Az AI motor nem tudta feldolgozni az adatokat.")
