@@ -314,7 +314,6 @@ def get_coach_clients(coach_id: int, db: Session = Depends(get_db)):
         plan = db.query(WeeklyPlan).filter(WeeklyPlan.client_id == c.id, WeeklyPlan.week_start_date == monday).first()
         plan_data = plan.plan_data if plan else "{}"
         
-        # JAVÍTÁS: Küldjük vissza a profilkép, város, csatlakozási dátum és terv nehézség adatokat is
         result.append({
             "id": c.id, 
             "first_name": c.first_name,
@@ -326,7 +325,12 @@ def get_coach_clients(coach_id: int, db: Session = Depends(get_db)):
             "join_date": c.join_date.strftime("%Y.%m.%d") if c.join_date else None,
             "city": c.city,
             "profile_picture_url": c.profile_picture_url,
-            "weekly_plan_difficulty": plan.difficulty_level if plan else "Közepes"
+            "weekly_plan_difficulty": plan.difficulty_level if plan else "Közepes",
+            "height": c.height,
+            "current_weight": c.current_weight,
+            "goal_weight": c.goal_weight,
+            "primary_goal": c.primary_goal,
+            "diet_allergies": c.diet_allergies
         })
         
     return result

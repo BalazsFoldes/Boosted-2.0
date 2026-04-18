@@ -1021,10 +1021,10 @@ export default function Home() {
             {!selectedClient && (
               <nav className="hidden sm:flex space-x-2">
                 <button onClick={() => setCurrentTab("overview")} className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 ${currentTab === "overview" ? `${themeBg} ${themeText}` : (isAiMode ? "text-purple-300 hover:bg-white/5" : "text-gray-500 hover:bg-gray-100")}`}>Áttekintés</button>
-                <button onClick={() => setCurrentTab("profile")} className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 ${currentTab === "profile" ? `${themeBg} ${themeText}` : (isAiMode ? "text-purple-300 hover:bg-white/5" : "text-gray-500 hover:bg-gray-100")}`}>Saját Profil</button>
                 <button onClick={() => setCurrentTab("ai")} className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 flex items-center gap-1.5 ${currentTab === "ai" ? "bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.5)]" : "text-gray-500 hover:bg-purple-50 hover:text-purple-600"}`}>
                   AI Asszisztens
                 </button>
+                <button onClick={() => setCurrentTab("profile")} className={`px-5 py-2 text-sm font-bold rounded-full transition-all duration-200 ${currentTab === "profile" ? `${themeBg} ${themeText}` : (isAiMode ? "text-purple-300 hover:bg-white/5" : "text-gray-500 hover:bg-gray-100")}`}>Saját Profil</button>
               </nav>
             )}
           </div>
@@ -1033,8 +1033,8 @@ export default function Home() {
             {!selectedClient && (
               <nav className="sm:hidden flex space-x-1 flex-1 mr-4">
                 <button onClick={() => setCurrentTab("overview")} className={`px-3 py-2 text-xs font-bold rounded-full transition-all ${currentTab === "overview" ? `${themeBg} ${themeText}` : (isAiMode ? "text-purple-300" : "text-gray-500")}`}>Áttek</button>
-                <button onClick={() => setCurrentTab("profile")} className={`px-3 py-2 text-xs font-bold rounded-full transition-all ${currentTab === "profile" ? `${themeBg} ${themeText}` : (isAiMode ? "text-purple-300" : "text-gray-500")}`}>Profil</button>
                 <button onClick={() => setCurrentTab("ai")} className={`px-3 py-2 text-xs font-bold rounded-full transition-all ${currentTab === "ai" ? "bg-purple-600 text-white shadow-md" : "text-gray-500"}`}>AI</button>
+                <button onClick={() => setCurrentTab("profile")} className={`px-3 py-2 text-xs font-bold rounded-full transition-all ${currentTab === "profile" ? `${themeBg} ${themeText}` : (isAiMode ? "text-purple-300" : "text-gray-500")}`}>Profil</button>
               </nav>
             )}
             <span className={`text-sm font-medium hidden md:inline transition-colors ${isAiMode ? "text-purple-200" : "text-gray-600"}`}>
@@ -1218,22 +1218,31 @@ export default function Home() {
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
                         <div className="flex flex-col">
                           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Magasság</span>
-                          <span className="text-xl font-extrabold text-gray-900">{selectedClient.height || "175"} <span className="text-sm text-gray-500 font-bold">cm</span></span>
+                          <span className="text-xl font-extrabold text-gray-900">
+                            {selectedClient.height ? `${selectedClient.height} ` : "N/A"} 
+                            {selectedClient.height && <span className="text-sm text-gray-500 font-bold">cm</span>}
+                          </span>
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Súly</span>
-                          <span className="text-xl font-extrabold text-gray-900">{selectedClient.current_weight || "72.5"} <span className="text-sm text-gray-500 font-bold">kg</span></span>
+                          <span className="text-xl font-extrabold text-gray-900">
+                            {selectedClient.current_weight ? `${selectedClient.current_weight} ` : "N/A"} 
+                            {selectedClient.current_weight && <span className="text-sm text-gray-500 font-bold">kg</span>}
+                          </span>
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Célsúly</span>
-                          <span className="text-xl font-extrabold text-gray-900">{selectedClient.goal_weight || "68.0"} <span className="text-sm text-gray-500 font-bold">kg</span></span>
+                          <span className="text-xl font-extrabold text-gray-900">
+                            {selectedClient.goal_weight ? `${selectedClient.goal_weight} ` : "N/A"} 
+                            {selectedClient.goal_weight && <span className="text-sm text-gray-500 font-bold">kg</span>}
+                          </span>
                         </div>
                         <div className="flex flex-col pl-4 border-l border-gray-100">
                           <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">BMI Index</span>
                           <span className="text-xl font-extrabold text-emerald-600">
                             {selectedClient.height && selectedClient.current_weight 
                               ? (selectedClient.current_weight / Math.pow(selectedClient.height / 100, 2)).toFixed(1) 
-                              : "23.7"}
+                              : "N/A"}
                           </span>
                         </div>
                       </div>
@@ -1241,11 +1250,15 @@ export default function Home() {
                       <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 text-sm">
                         <div className="mb-2">
                           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Elsődleges Cél</span>
-                          <span className="font-bold text-gray-800">{selectedClient.primary_goal || "Izomtömeg növelés és állóképesség javítás."}</span>
+                          <span className="font-bold text-gray-800">
+                            {selectedClient.primary_goal || "Nincs megadva"}
+                          </span>
                         </div>
                         <div>
                           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Étrend / Allergiák</span>
-                          <span className="font-medium text-gray-600">{selectedClient.diet_allergies || "Laktózérzékeny, magas fehérjetartalmú étrend."}</span>
+                          <span className="font-medium text-gray-600">
+                            {selectedClient.diet_allergies || "Nincs megadva"}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1913,7 +1926,7 @@ export default function Home() {
                               <input type="text" placeholder="Pl.: 5+ év" className={inputStyle} value={profileData.experienceYears} onChange={(e) => setProfileData({...profileData, experienceYears: e.target.value})} />
                             ) : (
                               <p className="text-sm font-bold text-gray-800 bg-gray-50/50 p-3 rounded-xl border border-gray-100 inline-flex items-center min-h-[46px] w-full">
-                                <span className="mr-2">⏳</span> {profileData.experienceYears ? `${profileData.experienceYears} a szakmában` : "Nincs megadva tapasztalat"}
+                                <span className="mr-2"></span> {profileData.experienceYears ? `${profileData.experienceYears} év a szakmában` : "Nincs megadva tapasztalat"}
                               </p>
                             )}
                           </div>
@@ -2601,7 +2614,7 @@ export default function Home() {
                            <span className="text-[10px] lg:text-xs font-bold text-blue-600 uppercase tracking-wider">Tapasztalat</span>
                         </div>
                         {/* DINAMIKUS TAPASZTALAT */}
-                        <span className="text-3xl font-extrabold text-gray-900">{assignedCoachData?.experience_years || "-"}</span>
+                        <span className="text-3xl font-extrabold text-gray-900">{assignedCoachData?.experience_years || "-"} év</span>
                       </div>
                       
                       <div className="bg-emerald-50/30 p-6 rounded-2xl border border-emerald-100 flex flex-col items-center sm:items-start justify-center hover:shadow-md transition-shadow">
