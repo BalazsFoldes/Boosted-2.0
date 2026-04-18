@@ -14,6 +14,8 @@ export default function Home() {
 
   const [isClientAiView, setIsClientAiView] = useState(false);
 
+  const [dashboardStats, setDashboardStats] = useState(null);
+
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isProfilePicModalOpen, setIsProfilePicModalOpen] = useState(false);
   const [tempPicUrl, setTempPicUrl] = useState("");
@@ -264,6 +266,12 @@ export default function Home() {
             const data = await res.json();
             setClients(data);
           }
+          const statsRes = await fetch(`http://localhost:8000/api/coach/${coachId}/dashboard-stats`);
+          if (statsRes.ok) {
+            const statsData = await statsRes.json();
+            setDashboardStats(statsData);
+          }
+          // ------------------------------
         } else if (userRole === "CLIENT") {
           const resLogs = await fetch(`http://localhost:8000/api/client/${userId}/logs`);
           if (resLogs.ok) {
@@ -476,15 +484,31 @@ export default function Home() {
 
     setIsActionLoading(true);
     try {
-      // Itt menne a fetch, de mockoljuk a sikert
-      triggerAlert(`Sikeresen küldtél egy motivációs Boost-ot ${selectedClient.last_name} ${selectedClient.first_name} számára!`, "success");
-      
-      // Megjegyezzük, hogy ma már kapott
-      setBoostedClientsToday(prev => ({ ...prev, [selectedClient.id]: true }));
-      setSelectedClient({ ...selectedClient, total_boosts: (selectedClient.total_boosts || 0) + 1 });
-      
+      // VALÓDI FETCH HÍVÁS A BACKENDRE
+      const res = await fetch(`http://localhost:8000/api/client/${selectedClient.id}/boost`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        const data = await res.json(); // A backend visszaküldi az új total_boosts értéket
+        
+        triggerAlert(`Sikeresen küldtél egy motivációs Boost-ot ${selectedClient.last_name} ${selectedClient.first_name} számára!`, "success");
+        
+        // 1. Megjegyezzük a frontendnek, hogy ma már kapott (ne lehessen spammelni)
+        setBoostedClientsToday(prev => ({ ...prev, [selectedClient.id]: true }));
+        
+        // 2. Frissítjük a kiválasztott klienst, hogy az adatlapján is jó szám jelenjen meg
+        setSelectedClient({ ...selectedClient, total_boosts: data.total_boosts });
+        
+        // 3. JAVÍTÁS: Frissítjük a teljes klienslistát is! 
+        // Így az Edzői "Statisztikák" dobozban a "Kiosztott Boostok" azonnal növekedni fog!
+        setClients(clients.map(c => c.id === selectedClient.id ? { ...c, total_boosts: data.total_boosts } : c));
+        
+      } else {
+        triggerAlert("Hiba a boost küldésekor.", "error");
+      }
     } catch (error) {
-      triggerAlert("Hiba a boost küldésekor.", "error");
+      triggerAlert("Szerver hiba a boost küldésekor.", "error");
     } finally {
       setIsActionLoading(false);
     }
@@ -1006,7 +1030,7 @@ export default function Home() {
     const themeBg = isCoach ? "bg-purple-50" : "bg-emerald-50";
 
     return (
-      <div className={`min-h-screen font-sans relative transition-colors duration-500 ${isAiMode ? "bg-slate-950" : "bg-slate-50"}`}>
+      <div className={`min-h-screen font-sans relative transition-colors duration-500 ${isAiMode ? "bg-slate-950" : "bg-slate-100"}`}>
         
         <header className={`shadow-sm border-b px-6 py-4 flex flex-col sm:flex-row justify-between items-center z-10 sticky top-0 transition-colors duration-500 ${isAiMode ? "bg-slate-950/80 backdrop-blur-lg border-purple-900/30" : "bg-white border-slate-200"}`}>
           <div className="flex items-center justify-between w-full sm:w-auto mb-4 sm:mb-0">
@@ -1188,8 +1212,12 @@ export default function Home() {
                     {/* Felső sor: Avatár, Név, Email, Tagek */}
                     <div className="flex items-start gap-6 mb-6">
                       
-                      <div className="h-24 w-24 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-4xl font-extrabold shrink-0 shadow-inner">
-                        {selectedClient.last_name.charAt(0).toUpperCase()}
+                      <div className="h-24 w-24 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-4xl font-extrabold shrink-0 shadow-inner overflow-hidden">
+                        {selectedClient.profile_picture_url ? (
+                          <img src={getValidImageUrl(selectedClient.profile_picture_url)} alt="Kliens" className="h-full w-full object-cover" />
+                        ) : (
+                          selectedClient.last_name ? selectedClient.last_name.charAt(0).toUpperCase() : "K"
+                        )}
                       </div>
                       
                       <div className="space-y-3 mt-1">
@@ -1415,77 +1443,75 @@ export default function Home() {
                   <div className="space-y-8">
                     
                     {/* ========================================== */}
-                    {/* ÚJ: GYORS STATISZTIKA KÁRTYÁK (WIDGETS)      */}
+                    {/* GYORS STATISZTIKA KÁRTYÁK (DINAMIKUS)        */}
                     {/* ========================================== */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up">
                       <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-center relative overflow-hidden group hover:border-blue-300 transition-colors">
                         <div className="absolute -right-6 -top-6 text-8xl opacity-[0.03] group-hover:scale-110 transition-transform">📝</div>
                         <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Mai naplózások</h4>
                         <div className="flex items-end gap-2 mb-3">
-                          <span className="text-5xl font-extrabold text-gray-900">7</span>
-                          <span className="text-xl font-medium text-gray-400 mb-1">/ {clients.length || 12} kliens</span>
+                          <span className="text-5xl font-extrabold text-gray-900">{dashboardStats?.today_logs_count || 0}</span>
+                          <span className="text-xl font-medium text-gray-400 mb-1">/ {clients.length || 0} kliens</span>
                         </div>
                         <div className="w-full bg-gray-100 rounded-full h-2">
-                          <div className="bg-blue-500 h-2 rounded-full" style={{ width: '65%' }}></div>
+                          <div 
+                            className="bg-blue-500 h-2 rounded-full transition-all duration-1000" 
+                            style={{ width: `${clients.length > 0 ? ((dashboardStats?.today_logs_count || 0) / clients.length) * 100 : 0}%` }}
+                          ></div>
                         </div>
                       </div>
 
                       <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-center relative overflow-hidden group hover:border-orange-300 transition-colors">
                         <div className="absolute -right-4 -top-2 text-7xl opacity-5 group-hover:scale-110 transition-transform">🔥</div>
                         <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Aktív Szériák (Rekorder)</h4>
-                        <span className="text-3xl font-extrabold text-gray-900 truncate">Tóth Anna</span>
+                        <span className="text-3xl font-extrabold text-gray-900 truncate">{dashboardStats?.top_streak_client || "-"}</span>
                         <span className="text-base font-bold text-orange-500 mt-2 flex items-center gap-1.5">
-                          <span className="text-lg">⚡</span> 5 napja folyamatosan
+                          <span className="text-lg">⚡</span> {dashboardStats?.top_streak_days || 0} napja folyamatosan
                         </span>
                       </div>
 
                       <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 md:p-8 rounded-2xl shadow-sm text-white flex flex-col justify-center relative overflow-hidden">
                         <div className="absolute -right-2 -bottom-4 text-7xl opacity-10">📉</div>
-                        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Átlagos Stressz</h4>
+                        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Csapat Átlag Stressz</h4>
                         <div className="flex items-end gap-2 mb-1">
-                          <span className="text-5xl font-extrabold text-white">4.2</span>
+                          <span className="text-5xl font-extrabold text-white">{dashboardStats?.average_stress || "0.0"}</span>
                           <span className="text-xl text-slate-400 mb-1">/ 10</span>
                         </div>
-                        <span className="text-base font-medium text-emerald-400 mt-2 flex items-center gap-1.5">
-                          Ideális zónában van
+                        <span className={`text-base font-medium mt-2 flex items-center gap-1.5 ${dashboardStats?.average_stress >= 7 ? "text-red-400" : "text-emerald-400"}`}>
+                          {dashboardStats?.average_stress >= 7 ? "Magas stressz szint!" : "Ideális zónában van"}
                         </span>
                       </div>
                     </div>
 
                     {/* ========================================== */}
-                    {/* ÚJ: FIGYELMET IGÉNYEL (OKOS RIASZTÁSOK)      */}
+                    {/* FIGYELMET IGÉNYEL (DINAMIKUS OKOS RIASZTÁSOK)*/}
                     {/* ========================================== */}
-                    <div className="bg-orange-50/50 border border-orange-200/60 rounded-3xl p-6 md:p-8 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-                      <div className="absolute right-0 top-0 w-64 h-64 bg-orange-400 opacity-5 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none"></div>
-                      <h3 className="text-lg font-extrabold text-orange-900 mb-6 flex items-center">
-                        <span className="bg-orange-200 text-orange-800 text-xs px-3 py-1 rounded-lg border border-orange-300 uppercase tracking-wider mr-3 shadow-sm">AI Asszisztens</span>
-                        Figyelmet igényel
-                      </h3>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 relative z-10">
-                        <div className="flex flex-col bg-white p-6 rounded-2xl shadow-sm border border-orange-100 hover:shadow-md transition-shadow">
-                          <div className="flex items-start gap-4 mb-4">
-                            <div className="text-3xl mt-0.5 drop-shadow-sm">⚠️</div>
-                            <div>
-                              <p className="font-bold text-gray-900 text-base">Nagy Péter 3 napja nem naplózott.</p>
-                              <p className="text-sm text-gray-500 mt-2 leading-relaxed">Az edzéstervét sem nyitotta meg a héten. Érdemes lenne ráírni, hogy minden rendben van-e, elvesztette-e a motivációt.</p>
-                            </div>
-                          </div>
-                          <button className="mt-auto w-full py-3 bg-orange-50 text-orange-700 text-sm font-bold rounded-xl hover:bg-orange-100 transition border border-orange-100">Kapcsolatfelvétel →</button>
-                        </div>
+                    {dashboardStats?.alerts && dashboardStats.alerts.length > 0 && (
+                      <div className="bg-orange-50/50 border border-orange-200/60 rounded-3xl p-6 md:p-8 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                        <div className="absolute right-0 top-0 w-64 h-64 bg-orange-400 opacity-5 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none"></div>
+                        <h3 className="text-lg font-extrabold text-orange-900 mb-6 flex items-center">
+                          <span className="bg-orange-200 text-orange-800 text-xs px-3 py-1 rounded-lg border border-orange-300 uppercase tracking-wider mr-3 shadow-sm">AI Asszisztens</span>
+                          Figyelmet igényel ({dashboardStats.alerts.length})
+                        </h3>
                         
-                        <div className="flex flex-col bg-white p-6 rounded-2xl shadow-sm border border-red-100 hover:shadow-md transition-shadow">
-                          <div className="flex items-start gap-4 mb-4">
-                            <div className="text-3xl mt-0.5 drop-shadow-sm">🚨</div>
-                            <div>
-                              <p className="font-bold text-gray-900 text-base">Kovács János stresszszintje kritikus (9/10).</p>
-                              <p className="text-sm text-gray-500 mt-2 leading-relaxed">Az alvása mindössze 4 óra volt tegnap. A mai intenzív intervallumedzést fokozottan ajánlott lenne egy könnyed nyújtásra módosítani.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 relative z-10">
+                          {dashboardStats.alerts.map((alert, idx) => (
+                            <div key={idx} className={`flex flex-col bg-white p-6 rounded-2xl shadow-sm border hover:shadow-md transition-shadow ${alert.type === "stress" ? "border-red-100" : "border-orange-100"}`}>
+                              <div className="flex items-start gap-4 mb-4">
+                                <div className="text-3xl mt-0.5 drop-shadow-sm">{alert.type === "stress" ? "🚨" : "⚠️"}</div>
+                                <div>
+                                  <p className="font-bold text-gray-900 text-base">{alert.client_name}</p>
+                                  <p className="text-sm text-gray-500 mt-2 leading-relaxed">{alert.message}</p>
+                                </div>
+                              </div>
+                              <button className={`mt-auto w-full py-3 text-sm font-bold rounded-xl transition border ${alert.type === "stress" ? "bg-red-50 text-red-700 hover:bg-red-100 border-red-100" : "bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-100"}`}>
+                                {alert.type === "stress" ? "Terv módosítása →" : "Kapcsolatfelvétel →"}
+                              </button>
                             </div>
-                          </div>
-                          <button className="mt-auto w-full py-3 bg-red-50 text-red-700 text-sm font-bold rounded-xl hover:bg-red-100 transition border border-red-100">Terv módosítása →</button>
+                          ))}
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* ========================================== */}
                     {/* EREDETI KLIENSLISTA (Keresővel)              */}
@@ -1518,8 +1544,12 @@ export default function Home() {
                           {filteredClients.map(client => (
                             <li key={client.id} className="p-6 sm:px-8 flex items-center justify-between hover:bg-blue-50/30 transition cursor-pointer group" onClick={() => handleViewClient(client)}>
                               <div className="flex items-center">
-                                <div className="h-14 w-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-extrabold text-2xl mr-5 shrink-0 group-hover:scale-105 transition-transform shadow-sm">
-                                  {client.last_name ? client.last_name.charAt(0).toUpperCase() : "K"}
+                                <div className="h-14 w-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-extrabold text-2xl mr-5 shrink-0 group-hover:scale-105 transition-transform shadow-sm overflow-hidden">
+                                  {client.profile_picture_url ? (
+                                    <img src={getValidImageUrl(client.profile_picture_url)} alt="Kliens" className="h-full w-full object-cover" />
+                                  ) : (
+                                    client.last_name ? client.last_name.charAt(0).toUpperCase() : "K"
+                                  )}
                                 </div>
                                 <div>
                                   <p className="text-lg font-extrabold text-gray-900 mb-0.5">{client.last_name} {client.first_name}</p>

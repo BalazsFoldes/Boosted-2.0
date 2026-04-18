@@ -427,3 +427,98 @@ def clear_boost(client_id: int, db: Session = Depends(get_db)):
         client.has_unseen_boost = False
         db.commit()
     return {"message": "Boost láttamozva"}
+
+# ==========================================
+# ÚJ: DASHBOARD STATISZTIKÁK ÉS RIASZTÁSOK
+# ==========================================
+def calculate_streak(logs):
+    if not logs: return 0
+    unique_dates = sorted(list(set(l.date for l in logs)), reverse=True)
+    streak = 0
+    today = datetime.now().date()
+    yesterday = today - timedelta(days=1)
+    
+    # Ha az utolsó naplózás régebbi, mint tegnap, megszakadt a széria
+    if unique_dates[0] < yesterday:
+        return 0
+        
+    target = unique_dates[0]
+    for d in unique_dates:
+        if d == target:
+            streak += 1
+            target = target - timedelta(days=1)
+        else:
+            break
+    return streak
+
+@app.get("/api/coach/{coach_id}/dashboard-stats")
+def get_coach_dashboard_stats(coach_id: int, db: Session = Depends(get_db)):
+    clients = db.query(User).filter(User.role == "CLIENT", User.coach_id == coach_id).all()
+    client_ids = [c.id for c in clients]
+    total_clients = len(clients)
+
+    if total_clients == 0:
+        return {
+            "today_logs_count": 0, "total_clients": 0,
+            "top_streak_client": "-", "top_streak_days": 0,
+            "average_stress": 0.0, "alerts": []
+        }
+
+    today = datetime.now().date()
+    seven_days_ago = today - timedelta(days=7)
+    
+    # Mai naplózások száma
+    today_logs = db.query(DailyLog).filter(DailyLog.client_id.in_(client_ids), DailyLog.date == today).all()
+    today_logs_count = len(set(l.client_id for l in today_logs))
+
+    # Utolsó 7 nap naplói
+    recent_logs = db.query(DailyLog).filter(DailyLog.client_id.in_(client_ids), DailyLog.date >= seven_days_ago).all()
+    
+    # Átlagos stressz
+    avg_stress = 0.0
+    if recent_logs:
+        avg_stress = round(sum(l.stress_level for l in recent_logs) / len(recent_logs), 1)
+
+    alerts = []
+    top_client_name = "-"
+    max_streak = 0
+
+    for c in clients:
+        # Kliens összes naplója a streak számoláshoz
+        c_all_logs = db.query(DailyLog).filter(DailyLog.client_id == c.id).order_by(DailyLog.date.desc()).all()
+        current_streak = calculate_streak(c_all_logs)
+        
+        if current_streak > max_streak:
+            max_streak = current_streak
+            top_client_name = f"{c.last_name} {c.first_name}"
+
+        # Riasztások logikája
+        c_recent_logs = [l for l in recent_logs if l.client_id == c.id]
+        
+        # 1. Több mint 3 napja nem naplózott
+        if not c_recent_logs or (today - c_recent_logs[0].date).days >= 3:
+            alerts.append({
+                "type": "missing",
+                "client_name": f"{c.last_name} {c.first_name}",
+                "message": "Több mint 3 napja nem naplózott. Érdemes ráírni, hogy minden rendben van-e, elvesztette-e a motivációt."
+            })
+        
+        # 2. Kritikus stressz (8 vagy felette)
+        if c_recent_logs and c_recent_logs[0].stress_level >= 8:
+            alerts.append({
+                "type": "stress",
+                "client_name": f"{c.last_name} {c.first_name}",
+                "message": f"A stresszszintje kritikus ({c_recent_logs[0].stress_level}/10). Fokozottan ajánlott az edzésterv könnyítése."
+            })
+
+    # Riasztások rendezése és vágása (max 4, hogy ne árassza el a képernyőt)
+    alerts = sorted(alerts, key=lambda x: x["type"])[:4]
+
+    return {
+        "today_logs_count": today_logs_count,
+        "total_clients": total_clients,
+        "top_streak_client": top_client_name,
+        "top_streak_days": max_streak,
+        "average_stress": avg_stress,
+        "alerts": alerts
+    }
