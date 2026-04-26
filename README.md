@@ -30,16 +30,16 @@ A platform célja, hogy az edzők túlmutassanak a hagyományos (csak súlyokat 
 
 ```text
 Boosted-2.0/
-├── boosted.db          # SQLite adatbázis (fejlesztői környezet)
-├── frontend/           # A Next.js webalkalmazás (UI, kliens és edzői nézetek)
-│   ├── src/app/        # Oldalak és komponensek (page.js)
-│   └── public/         # Statikus fájlok
-├── app/                # A FastAPI szerver
-│   ├── main.py         # API végpontok, AI logika, DB modellek és Pydantic sémák
-└── docs/               # Szakdolgozati dokumentációk és UX tervek
-    ├── ux/             # Wireframe-ek, Pageflow, Képernyőképek
-    ├── system/         # Architektúra tervek
-    └── szakdolgozat_Foldes_Balazs_NYCLM8.pdf/         # Szakdolgozat minta/alapja
+├── boosted.db                                          # SQLite adatbázis (fejlesztői környezet)
+├── frontend/                                           # A Next.js webalkalmazás (UI, kliens és edzői nézetek)
+│   ├── src/app/                                        # Oldalak és komponensek (page.js)
+│   └── public/                                         # Statikus fájlok
+├── app/                                                # A FastAPI szerver
+│   ├── main.py                                         # API végpontok, AI logika, DB modellek és Pydantic sémák
+└── docs/                                               # Szakdolgozati dokumentációk és UX tervek
+    ├── ux/                                             # Wireframe-ek, Pageflow, Képernyőképek
+    ├── system/                                         # Architektúra tervek
+    └── szakdolgozat_Foldes_Balazs_NYCLM8.pdf/          # Szakdolgozat minta/alapja
 
 
 
