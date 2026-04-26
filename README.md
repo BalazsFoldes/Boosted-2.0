@@ -34,7 +34,7 @@ Boosted-2.0/
 ├── frontend/           # A Next.js webalkalmazás (UI, kliens és edzői nézetek)
 │   ├── src/app/        # Oldalak és komponensek (page.js)
 │   └── public/         # Statikus fájlok
-├── app/            # A FastAPI szerver
+├── app/                # A FastAPI szerver
 │   ├── main.py         # API végpontok, AI logika, DB modellek és Pydantic sémák
 └── docs/               # Szakdolgozati dokumentációk és UX tervek
     ├── ux/             # Wireframe-ek, Pageflow, Képernyőképek
