@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 // ÚJ: ComposedChart és Bar importálása az oszlopdiagramhoz
 import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { jsPDF } from "jspdf";
 
 export default function Home() {
   const [view, setView] = useState("landing"); 
@@ -19,6 +20,8 @@ export default function Home() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [activeReportType, setActiveReportType] = useState("");
   const [aiDashboardData, setAiDashboardData] = useState(null);
+  const [clientAiData, setClientAiData] = useState(null);
+  const [isClientAiLoading, setIsClientAiLoading] = useState(false);
 
 
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -198,6 +201,85 @@ export default function Home() {
     return `${date.getFullYear()}-${month}-${dayOfMonth}`;
   };
 
+  // --- ÚJ ÁLLAPOT A HÉTVÁLASZTÓHOZ ---
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // --- PDF EXPORTÁLÓ FÜGGVÉNY ---
+  const handleExportPdf = (weekStartDate) => {
+    // 1. Segédfüggvény az ékezetek eltávolítására (jsPDF és fájlnév kompatibilitás)
+    const removeAccents = (str) => {
+      if (!str) return "";
+      const map = {
+        'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ö': 'o', 'ő': 'o', 'ú': 'u', 'ü': 'u', 'ű': 'u',
+        'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ö': 'O', 'Ő': 'O', 'Ú': 'U', 'Ü': 'U', 'Ű': 'U'
+      };
+      return str.replace(/[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/g, match => map[match]);
+    };
+
+    // 2. Adatok előkészítése
+    const selectedPlanObj = clientAllPlans.find(p => p.week_start === weekStartDate);
+    const weekPlan = selectedPlanObj && selectedPlanObj.plan_data ? JSON.parse(selectedPlanObj.plan_data) : {};
+    
+    // Dátum formázása: 2026-04-13 -> 2026.04.13
+    const formattedDate = weekStartDate.replaceAll('-', '.');
+
+    const doc = new jsPDF();
+    const displayDays = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat", "Vasárnap"];
+    
+    // Stílus beállítások a PDF tartalomban
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(63, 63, 191); 
+    doc.text("BOOSTED PRO - EDZESTERV", 20, 20); // Ékezet kiveve
+
+    doc.setFontSize(12);
+    doc.setTextColor(100);
+    doc.setFont("helvetica", "normal");
+    
+    const safeClientFullName = removeAccents(`${selectedClient.last_name} ${selectedClient.first_name}`);
+    const safeCoachName = removeAccents(`${loggedInLastName} ${loggedInFirstName}`);
+    
+    doc.text(`Kliens: ${safeClientFullName}`, 20, 30);
+    doc.text(`Idoszak (Het kezdete): ${formattedDate}`, 20, 37); // Ékezet kiveve
+    doc.text(`Edzo: ${safeCoachName}`, 20, 44); // Ékezet kiveve
+    
+    doc.setLineWidth(0.5);
+    doc.line(20, 50, 190, 50);
+
+    let yPos = 60;
+    
+    displayDays.forEach((originalDay) => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(0);
+      doc.text(removeAccents(originalDay).toUpperCase(), 20, yPos);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(60);
+      
+      const rawText = weekPlan[originalDay] || "Pihenőnap / Nincs program rögzítve.";
+      const safeText = removeAccents(rawText);
+      
+      const splitText = doc.splitTextToSize(safeText, 160);
+      doc.text(splitText, 25, yPos + 7);
+      
+      yPos += (splitText.length * 5) + 15;
+
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+    });
+
+    // 3. Fájl mentése az új névformátummal: Vezeteknev_Keresztnev_Datum.pdf
+    const fileName = `${removeAccents(selectedClient.last_name)}_${removeAccents(selectedClient.first_name)}_${formattedDate}.pdf`;
+    
+    doc.save(fileName);
+    setIsExportModalOpen(false);
+    triggerAlert("PDF sikeresen legenerálva!", "success");
+  };
+
   const getDayDateLabel = (weekStartStr, dayIndex) => {
     const d = new Date(weekStartStr);
     d.setDate(d.getDate() + dayIndex);
@@ -309,8 +391,8 @@ useEffect(() => {
   // ÚJ: AI DASHBOARD AUTOMATIKUS LEKÉRÉSE (BIZTONSÁGOS)
   // ==========================================
   useEffect(() => {
-    // A feltétel megakadályozza a végtelen ciklust: csak akkor fut le, ha AI fülön vagyunk ÉS még nincs adat
-    if (currentTab === "ai" && !selectedClient && !aiDashboardData && !isAiLoading) {
+    // JAVÍTÁS: Ez CSAK akkor futhat le, ha NEM a részletes elemző nézetben vagyunk
+    if (currentTab === "ai" && !selectedClient && !isClientAiView && !aiDashboardData && !isAiLoading) {
       const fetchAiDashboard = async () => {
         setIsAiLoading(true);
         let contextData = "";
@@ -318,7 +400,6 @@ useEffect(() => {
         if (userRole === "COACH") {
           contextData = `Edző vagyok. Klienseim száma: ${clients.length}. Mai naplózások: ${dashboardStats?.today_logs_count || 0}. Csapat átlag stressz: ${dashboardStats?.average_stress || 0}/10.`;
         } else {
-          // BŐVÍTÉS: Vesszük az utolsó 3 naplót, és olvasható szöveggé fűzzük az AI számára
           const recentLogsText = clientLogs && clientLogs.length > 0 
             ? clientLogs.slice(0, 3).map(l => `[Alvás: ${l.sleep_hours}h, Stressz: ${l.stress_level}/10, Víz: ${l.water_liters}L]`).join(", ")
             : "Nincsenek friss naplók.";
@@ -340,8 +421,8 @@ useEffect(() => {
             const data = await res.json();
             setAiDashboardData(data);
           } else {
-            // Ha a backend hibát dob, adunk egy hiba-objektumot, hogy megálljon a ciklus
             setAiDashboardData({ summary_title: "Hiba történt", summary_text: "Nem sikerült elérni az AI szervert." });
+            triggerAlert("Hiba a lekérés során", "error");
           }
         } catch (error) {
           console.error("AI hiba:", error);
@@ -353,7 +434,7 @@ useEffect(() => {
       
       fetchAiDashboard();
     }
-  }, [currentTab, selectedClient, aiDashboardData, isAiLoading, userRole, clients.length, dashboardStats, profileData, currentStreak]);
+  }, [currentTab, selectedClient, isClientAiView, aiDashboardData, isAiLoading, userRole, clients.length, dashboardStats, profileData, currentStreak, clientLogs]);
 
   const getValidImageUrl = (url) => {
     if (!url) return "";
@@ -405,6 +486,7 @@ useEffect(() => {
   const handleViewClient = async (client) => {
     setSelectedClient(client);
     setIsClientAiView(false);
+    setClientAiData(null);
     setSelectedWeek(currentRealMonday); 
     setPlanDay("Hétfő");
     setPlanText("");
@@ -629,6 +711,52 @@ useEffect(() => {
     }
   }, [planDay, selectedWeek, isPlanModalOpen, clientAllPlans]);
 
+  useEffect(() => {
+    if (userRole === "COACH" && selectedClient && isClientAiView && !clientAiData && !isClientAiLoading) {
+      const fetchClientAi = async () => {
+        setIsClientAiLoading(true);
+        
+        const logText = selectedClientLogs.slice(0, 7).map(l => `[${l.date}: Alvás ${l.sleep_hours}h, Stressz ${l.stress_level}/10, Víz ${l.water_liters}L, Edzés ${l.workout_minutes}p]`).join(", ");
+        const contextData = `Kliens: ${selectedClient.last_name} ${selectedClient.first_name}. Cél: ${selectedClient.primary_goal || "Nem megadott"}. Étrend és allergiák: ${selectedClient.diet_allergies || "Nincs megadva"}. Jelenlegi súly: ${selectedClient.current_weight || "?"}kg, Célsúly: ${selectedClient.goal_weight || "?"}kg. Edzői jegyzetek róla: ${coachNotes || "Nincs jegyzet"}. Utolsó heti naplói: ${logText || "Nincs rögzített naplója"}`;
+
+        try {
+          const res = await fetch("http://localhost:8000/api/generate-client-analysis", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ context_data: contextData })
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            setClientAiData(data);
+          } else {
+            setClientAiData({
+              summary_text: "Az AI szerver jelenleg túlterhelt (Rate Limit) vagy nem elérhető.",
+              risk_status: "Hiba", risk_desc: "Kérlek, próbáld újra pár perc múlva.", risk_action: "-",
+              goal_status: "Hiba", goal_metric: "-", goal_desc: "Nincs adat.", goal_action: "-",
+              pattern1_icon: "⚠️", pattern1_title: "Hálózati hiba", pattern1_desc: "A kapcsolat megszakadt.",
+              pattern2_icon: "⏳", pattern2_title: "Túl sok lekérés", pattern2_desc: "Várj egy kicsit."
+            });
+            triggerAlert("Az AI API elérte a limitet.", "error");
+          }
+        } catch (error) {
+          console.error("AI Kliens Hiba:", error);
+          setClientAiData({
+            summary_text: "Nem sikerült kapcsolódni a szerverhez.",
+            risk_status: "Hiba", risk_desc: "Nincs kapcsolat.", risk_action: "-",
+            goal_status: "Hiba", goal_metric: "-", goal_desc: "Nincs kapcsolat.", goal_action: "-",
+            pattern1_icon: "🚫", pattern1_title: "Szerverhiba", pattern1_desc: "A backend nem válaszol.",
+            pattern2_icon: "🔌", pattern2_title: "Offline", pattern2_desc: "Ellenőrizd a szervert."
+          });
+        } finally {
+          setIsClientAiLoading(false);
+        }
+      };
+      
+      fetchClientAi();
+    }
+  }, [userRole, selectedClient, isClientAiView, clientAiData, isClientAiLoading, selectedClientLogs, coachNotes]);
+
   const handleRegister = async (e) => {
     e.preventDefault();
     setIsActionLoading(true);
@@ -745,6 +873,9 @@ useEffect(() => {
     
     // 4. Név és profil adatok törlése
     setFirstName(""); setLastName(""); setLoggedInFirstName(""); setLoggedInLastName(""); setIsEditingProfile(false);
+  
+    setAiDashboardData(null); 
+    setIsAiLoading(false);
   };
 
 
@@ -1181,98 +1312,126 @@ useEffect(() => {
           {/* ========================================== */}
           {isCoach && selectedClient && (
             isClientAiView ? (
-              /* --- 1. ÚJ KLIENS AI ELEMZŐ OLDAL (SÖTÉT MÓD) --- */
               <div className="animate-fade-in-up w-full max-w-6xl mx-auto pt-2 pb-12 relative z-10 text-white">
                 
-                {/* Vissza gomb */}
-                <button onClick={() => setIsClientAiView(false)} className="mb-6 flex items-center text-purple-300 hover:text-white transition-colors font-bold text-sm bg-white/5 px-4 py-2.5 rounded-xl border border-white/10 shadow-sm backdrop-blur-md">
-                  <span className="mr-2 text-lg leading-none">←</span> Vissza az adatlapra
-                </button>
+                <div className="fixed top-[20%] right-[-10%] w-[600px] h-[600px] bg-purple-600/15 rounded-full blur-[120px] pointer-events-none z-0"></div>
+                <div className="fixed bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-orange-600/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
 
-                {/* Fejléc: Kliens neve és AI logó */}
-                <div className="flex flex-col md:flex-row gap-8 items-center md:items-start justify-between mb-8 bg-white/5 backdrop-blur-xl border border-white/10 p-8 md:p-10 rounded-[2rem] shadow-2xl">
-                  <div className="max-w-2xl flex-1">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div>
-                      <span className="text-orange-400 text-xs font-bold uppercase tracking-widest">
-                        Neural Engine Profil Elemzés
-                      </span>
-                    </div>
-                    <h2 className="text-3xl md:text-5xl font-extrabold mb-4 tracking-tight text-white leading-tight">
-                      {selectedClient.last_name} {selectedClient.first_name}
-                    </h2>
-                    <p className="text-purple-200/70 text-lg leading-relaxed font-medium">
-                      Az AI modell elemezte a kliens utolsó időszakának biometrikus adatait, edzésvolumenét és jegyzeteidet. Itt láthatod a prediktív kockázatokat és a javasolt akciótervet.
-                    </p>
-                  </div>
-                  <div className="text-7xl md:text-8xl drop-shadow-[0_0_30px_rgba(249,115,22,0.4)] animate-pulse hidden md:block">
-                    🧠
-                  </div>
-                </div>
-
-                {/* Kártyák gridje */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="relative z-10">
                   
-                  {/* Sérülés & Kimerültség Kockázat */}
-                  <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 md:p-8 border border-white/5 hover:border-red-500/30 transition-all relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 to-rose-400 opacity-70 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="flex justify-between items-center mb-4 mt-2">
-                      <h3 className="text-xl font-extrabold text-white tracking-wide">Kimerültség & Kockázat</h3>
-                      <span className="bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm">Kritikus</span>
-                    </div>
-                    <p className="text-sm text-purple-200/70 font-medium mb-6 leading-relaxed">
-                      Az elmúlt napokban az edzésintenzitás drasztikusan magasabb volt az alvásminőséghez képest. Ez a minta 82%-os pontossággal vezet túledzéshez vagy izomhúzódáshoz.
-                    </p>
-                    <div className="mt-auto bg-black/40 p-4 rounded-xl border border-white/5 relative overflow-hidden">
-                      <div className="absolute left-0 top-0 w-1 h-full bg-red-500"></div>
-                      <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest block mb-1.5 pl-2">AI Javaslat</span>
-                      <p className="text-sm text-gray-200 font-semibold pl-2">A heti edzéstervből távolíts el 1 intenzív napot, és helyettesítsd mobilizációs (nyújtó) programmal.</p>
-                    </div>
+                  <div className="flex justify-between items-center mb-6 w-full">
+                    <button onClick={() => { setIsClientAiView(false); setClientAiData(null); }} className="flex items-center text-purple-300 hover:text-white transition-colors font-bold text-sm bg-white/5 px-4 py-2.5 rounded-xl border border-white/10 shadow-sm backdrop-blur-md">
+                      <span className="mr-2 text-lg leading-none">←</span> Vissza az adatlapra
+                    </button>
+
+                    <button 
+                      onClick={() => setIsExportModalOpen(true)} 
+                      className="flex items-center text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg shadow-blue-500/20 active:scale-95"
+                    >
+                      <span className="mr-2 text-lg"></span> Heti terv letöltése (PDF)
+                    </button>
                   </div>
 
-                  {/* Cél Előrejelzés */}
-                  <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 md:p-8 border border-white/5 hover:border-emerald-500/30 transition-all relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-600 to-teal-400 opacity-70 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="flex justify-between items-center mb-4 mt-2">
-                      <h3 className="text-xl font-extrabold text-white tracking-wide">Cél Előrejelzés</h3>
-                      <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm">Pozitív</span>
-                    </div>
-                    <div className="flex items-end gap-3 mb-6">
-                      <span className="text-4xl font-extrabold text-white">{selectedClient.goal_weight || "Célsúly"} <span className="text-lg text-emerald-400 font-medium">{selectedClient.goal_weight ? "kg" : ""}</span></span>
-                      <span className="text-sm text-purple-200/70 font-medium mb-1.5">Várható elérés: <strong className="text-emerald-300">28 nap</strong></span>
-                    </div>
-                    <p className="text-sm text-purple-200/70 font-medium mb-6 leading-relaxed">
-                      A jelenlegi aktivitási mutatók alapján a kliens kiváló ütemben halad a célja felé. A napi folyadékbevitel stabil és megfelelő.
-                    </p>
-                    <div className="mt-auto bg-black/40 p-4 rounded-xl border border-white/5 relative overflow-hidden">
-                      <div className="absolute left-0 top-0 w-1 h-full bg-emerald-500"></div>
-                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block mb-1.5 pl-2">AI Javaslat</span>
-                      <p className="text-sm text-gray-200 font-semibold pl-2">Küldj neki egy motivációs Boost-ot a kitartásáért, ez növeli a hosszútávú elköteleződést.</p>
-                    </div>
-                  </div>
-
-                  {/* Rejtett Mintázatok (Széles kártya alul) */}
-                  <div className="md:col-span-2 bg-gradient-to-br from-slate-800 to-slate-900 backdrop-blur-md rounded-2xl p-6 md:p-8 border border-white/5 hover:border-blue-500/30 transition-all relative overflow-hidden group shadow-xl">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-purple-500 opacity-70 group-hover:opacity-100 transition-opacity"></div>
-                    <h3 className="text-xl font-extrabold text-white tracking-wide mt-2 mb-6 flex items-center">
-                      <span className="text-2xl mr-3"></span> Felfedezett mintázatok
-                    </h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-white/5 p-6 rounded-xl border border-white/5 hover:bg-white/10 transition-colors">
-                        <div className="text-3xl mb-3 drop-shadow-md">💧</div>
-                        <h4 className="text-white font-bold mb-2 text-base">Hétvégi Hidratációs Deficit</h4>
-                        <p className="text-sm text-purple-200/70 leading-relaxed">A naplók alapján szombaton és vasárnap a vízfogyasztás átlagosan 35%-kal esik vissza, ami a hétfői fáradtságra is kihat.</p>
+                  <div className="flex flex-col md:flex-row gap-8 items-center md:items-start justify-between mb-8 bg-white/5 backdrop-blur-xl border border-white/10 p-8 md:p-10 rounded-[2rem] shadow-2xl">
+                    <div className="max-w-2xl flex-1">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div>
+                        <span className="text-orange-400 text-xs font-bold uppercase tracking-widest">
+                          Neural Engine Profil Elemzés
+                        </span>
                       </div>
-                      <div className="bg-white/5 p-6 rounded-xl border border-white/5 hover:bg-white/10 transition-colors">
-                        <div className="text-3xl mb-3 drop-shadow-md">⏱️</div>
-                        <h4 className="text-white font-bold mb-2 text-base">Edzésidő Optimalizálás</h4>
-                        <p className="text-sm text-purple-200/70 leading-relaxed">A 60 percnél hosszabb edzések utáni napokon a stressz-szint szignifikánsan magasabb. Javasolt a volumen csökkentése és az intenzitás enyhe növelése.</p>
-                      </div>
+                      <h2 className="text-3xl md:text-5xl font-extrabold mb-4 tracking-tight text-white leading-tight">
+                        {selectedClient.last_name} {selectedClient.first_name}
+                      </h2>
+                      <p className="text-purple-200/70 text-lg leading-relaxed font-medium">
+                        {clientAiData ? clientAiData.summary_text : "Az AI modell elemzi a kliens utolsó időszakának biometrikus adatait, edzésvolumenét és jegyzeteidet..."}
+                      </p>
+                    </div>
+                    <div className="text-7xl md:text-8xl drop-shadow-[0_0_30px_rgba(249,115,22,0.4)] animate-pulse hidden md:block">
+                      🧠
                     </div>
                   </div>
 
-                </div>
+                  {/* TARTALOM: BETÖLTÉS VAGY ADATOK */}
+                  {isClientAiLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20">
+                      <div className="w-16 h-16 border-4 border-t-transparent border-orange-500 rounded-full animate-spin mb-6"></div>
+                      <h3 className="text-xl font-bold text-white mb-2">Egyedi profil felépítése folyamatban...</h3>
+                      <p className="text-purple-300/60 animate-pulse tracking-widest uppercase text-xs font-bold">Trendek elemzése...</p>
+                    </div>
+                  ) : clientAiData ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in-up">
+                      
+                      {/* Sérülés & Kimerültség Kockázat */}
+                      <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 md:p-8 border border-white/5 hover:border-red-500/30 transition-all relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 to-rose-400 opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                        <div className="flex justify-between items-center mb-4 mt-2">
+                          <h3 className="text-xl font-extrabold text-white tracking-wide">Kockázat & Állapot</h3>
+                          <span className={`border px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm ${clientAiData.risk_status === 'Kritikus' ? 'bg-red-500/20 text-red-400 border-red-500/30' : clientAiData.risk_status === 'Stabil' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-orange-500/20 text-orange-400 border-orange-500/30'}`}>
+                            {clientAiData.risk_status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-purple-200/70 font-medium mb-6 leading-relaxed flex-1 min-h-[60px]">
+                          {clientAiData.risk_desc}
+                        </p>
+                        <div className="mt-auto bg-black/40 p-4 rounded-xl border border-white/5 relative overflow-hidden">
+                          <div className={`absolute left-0 top-0 w-1 h-full ${clientAiData.risk_status === 'Kritikus' ? 'bg-red-500' : clientAiData.risk_status === 'Stabil' ? 'bg-emerald-500' : 'bg-orange-500'}`}></div>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 pl-2">AI Javaslat</span>
+                          <p className="text-sm text-white font-semibold pl-2">{clientAiData.risk_action}</p>
+                        </div>
+                      </div>
+
+                      {/* Cél Előrejelzés */}
+                      <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 md:p-8 border border-white/5 hover:border-emerald-500/30 transition-all relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-600 to-teal-400 opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                        <div className="flex justify-between items-center mb-4 mt-2">
+                          <h3 className="text-xl font-extrabold text-white tracking-wide">Cél Előrejelzés</h3>
+                          <span className={`border px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm ${clientAiData.goal_status === 'Kiváló' || clientAiData.goal_status === 'Pozitív' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : clientAiData.goal_status === 'Stagnál' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
+                            {clientAiData.goal_status}
+                          </span>
+                        </div>
+                        <div className="flex items-end gap-3 mb-6">
+                          <span className="text-3xl font-extrabold text-white">{clientAiData.goal_metric}</span>
+                        </div>
+                        <p className="text-sm text-purple-200/70 font-medium mb-6 leading-relaxed flex-1 min-h-[60px]">
+                          {clientAiData.goal_desc}
+                        </p>
+                        <div className="mt-auto bg-black/40 p-4 rounded-xl border border-white/5 relative overflow-hidden">
+                          <div className="absolute left-0 top-0 w-1 h-full bg-emerald-500"></div>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 pl-2">AI Javaslat</span>
+                          <p className="text-sm text-white font-semibold pl-2">{clientAiData.goal_action}</p>
+                        </div>
+                      </div>
+
+                      {/* Felfedezett Mintázatok */}
+                      <div className="md:col-span-2 bg-gradient-to-br from-slate-800 to-slate-900 backdrop-blur-md rounded-2xl p-6 md:p-8 border border-white/5 hover:border-blue-500/30 transition-all relative overflow-hidden group shadow-xl">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-purple-500 opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                        <h3 className="text-xl font-extrabold text-white tracking-wide mt-2 mb-6 flex items-center">
+                          Rejtett mintázatok a naplókban
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="bg-white/5 p-6 rounded-xl border border-white/5 hover:bg-white/10 transition-colors">
+                            <div className="text-3xl mb-3 drop-shadow-md">{clientAiData.pattern1_icon}</div>
+                            <h4 className="text-white font-bold mb-2 text-base">{clientAiData.pattern1_title}</h4>
+                            <p className="text-sm text-purple-200/70 leading-relaxed">{clientAiData.pattern1_desc}</p>
+                          </div>
+                          <div className="bg-white/5 p-6 rounded-xl border border-white/5 hover:bg-white/10 transition-colors">
+                            <div className="text-3xl mb-3 drop-shadow-md">{clientAiData.pattern2_icon}</div>
+                            <h4 className="text-white font-bold mb-2 text-base">{clientAiData.pattern2_title}</h4>
+                            <p className="text-sm text-purple-200/70 leading-relaxed">{clientAiData.pattern2_desc}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  ) : (
+                    <div className="text-center py-20 bg-white/5 rounded-[2rem] border border-dashed border-white/10">
+                      <p className="text-gray-400 font-medium italic">Hiba történt az elemzés betöltésekor.</p>
+                    </div>
+                  )}
+
+                </div> {/* Itt záródik be az új relatív wrapper */}
               </div>
             ) : (
               /* --- 2. RÉGI, VILÁGOS KLIENS ADATLAP NÉZET (A TE KÓDOD) --- */
@@ -2117,7 +2276,7 @@ useEffect(() => {
                       </span>
                     </div>
                     <h2 className="text-3xl md:text-5xl font-extrabold mb-5 tracking-tight text-white leading-tight">
-                      {isCoach ? "Professzionális Elemző Központ" : "Személyes Adatvezérelt Elemzés"}
+                      {isCoach ? "AI Asszisztens Elemző Központ" : "Személyes Elemzés"}
                     </h2>
                     <p className="text-purple-200/70 text-lg leading-relaxed font-medium">
                       A mesterséges intelligencia elemezte a rendszeredben lévő adatokat. Íme az aktuális kimutatások:
@@ -2795,6 +2954,55 @@ useEffect(() => {
                   Kép mentése
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* ÚJ: HÉTVÁLASZTÓ PDF EXPORT MODAL           */}
+        {/* ========================================== */}
+        {isExportModalOpen && (
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md flex items-center justify-center z-[250] p-4 transition-opacity">
+            <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md relative animate-fade-in-up border border-gray-100">
+              <button onClick={() => setIsExportModalOpen(false)} className="absolute top-5 right-6 text-gray-400 hover:text-gray-800 transition-colors text-3xl font-light leading-none">×</button>
+              
+              <div className="mb-6 pr-8">
+                <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1.5">Exportálás</p>
+                <h3 className="text-2xl font-extrabold text-gray-900 tracking-tight">Válassz hetet</h3>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-6 font-medium leading-relaxed">
+                Válaszd ki, melyik hét tervét szeretnéd PDF formátumban letölteni és megosztani a klienssel.
+              </p>
+
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                {clientAllPlans.length === 0 ? (
+                  <p className="text-center py-4 text-gray-400 italic font-medium">Még nincs rögzített terv a kliensnél.</p>
+                ) : (
+                  clientAllPlans.map((plan) => (
+                    <button 
+                      key={plan.week_start} 
+                      onClick={() => handleExportPdf(plan.week_start)}
+                      className="w-full p-4 text-left bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 rounded-2xl transition-all flex justify-between items-center group shadow-sm hover:shadow-md"
+                    >
+                      <div>
+                        <span className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">Hét kezdete</span>
+                        <span className="text-gray-900 font-bold text-lg">{plan.week_start}</span>
+                      </div>
+                      <span className="text-blue-600 bg-white border border-blue-100 px-3 py-1.5 rounded-lg text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                        Letöltés ↓
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+
+              <button 
+                onClick={() => setIsExportModalOpen(false)} 
+                className="w-full mt-6 py-3.5 bg-gray-100 text-gray-800 font-bold rounded-xl hover:bg-gray-200 transition text-sm"
+              >
+                Mégse
+              </button>
             </div>
           </div>
         )}

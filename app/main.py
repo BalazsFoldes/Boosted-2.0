@@ -9,6 +9,10 @@ import json
 from datetime import datetime, timedelta
 from typing import Optional
 import google.generativeai as genai
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # --- 1. Adatbázis Beállítás (SQLite) ---
 SQLALCHEMY_DATABASE_URL = "sqlite:///./boosted.db"
@@ -17,10 +21,11 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # --- 1.5 Gemini AI ---
-GEMINI_API_KEY = "AIzaSyBEoJGgd9eUvUqTHWBWi4g17pa3Sm46ymA" 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    raise RuntimeError("HIBA: Nincs beállítva a GEMINI_API_KEY a .env fájlban!")
+
 genai.configure(api_key=GEMINI_API_KEY)
-
-
 
 
 # --- 2. Modellek ---
@@ -174,6 +179,9 @@ class ChatRequest(BaseModel):
 
 class AIDashboardRequest(BaseModel):
     user_type: str
+    context_data: str
+
+class ClientAnalysisRequest(BaseModel):
     context_data: str
 
 def get_db():
@@ -559,7 +567,7 @@ def chat_with_ai(req: ChatRequest):
     try:
         # 2. Modell inicializálása a rendszer-utasítással
         model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
+            model_name="gemini-3.1-flash-lite-preview",
             system_instruction=system_instruction,
             generation_config={"response_mime_type": "application/json"}
         )
@@ -610,7 +618,7 @@ def generate_ai_dashboard(req: AIDashboardRequest):
     try:
         # A listádból a legújabb, villámgyors modellt használjuk!
         model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash", 
+            model_name="gemini-3.1-flash-lite-preview",
             system_instruction=system_instruction,
             generation_config={"response_mime_type": "application/json"}
         )
@@ -623,3 +631,29 @@ def generate_ai_dashboard(req: AIDashboardRequest):
     except Exception as e:
         print(f"Hiba az AI generálás során: {str(e)}")
         raise HTTPException(status_code=500, detail="Az AI motor nem tudta feldolgozni az adatokat.")
+    
+
+@app.post("/api/generate-client-analysis")
+def generate_client_analysis(req: ClientAnalysisRequest):
+    system_instruction = (
+        "Te egy profi fitnesz adatelemző és prediktív AI vagy a Boosted platformon. "
+        "A válaszod KIZÁRÓLAG egy érvényes JSON objektum lehet, markdown nélkül. "
+        "A JSON KÖTELEZŐ struktúrája pontosan a következő legyen: "
+        "{\"summary_text\": \"...\", \"risk_status\": \"Kritikus, Figyelmeztetés vagy Stabil\", \"risk_desc\": \"...\", "
+        "\"risk_action\": \"...\", \"goal_status\": \"Kiváló, Stagnál vagy Visszaesés\", \"goal_metric\": \"Rövid metrika, pl. -2kg vagy 5 nap\", "
+        "\"goal_desc\": \"...\", \"goal_action\": \"...\", \"pattern1_icon\": \"Egyetlen emoji\", \"pattern1_title\": \"...\", "
+        "\"pattern1_desc\": \"...\", \"pattern2_icon\": \"Egyetlen emoji\", \"pattern2_title\": \"...\", \"pattern2_desc\": \"...\"}. "
+        "A szövegek magyar nyelvűek, lényegretörőek és professzionálisak legyenek."
+    )
+    
+    try:
+        model = genai.GenerativeModel(
+            model_name="gemini-3.1-flash-lite-preview", 
+            system_instruction=system_instruction,
+            generation_config={"response_mime_type": "application/json"}
+        )
+        response = model.generate_content(req.context_data)
+        return json.loads(response.text)
+    except Exception as e:
+        print(f"Hiba a Kliens AI generálás során: {str(e)}")
+        raise HTTPException(status_code=500, detail="Az AI motor nem tudta feldolgozni a kliens adatokat.")
