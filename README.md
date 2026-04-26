@@ -38,7 +38,8 @@ Boosted-2.0/
 │   ├── main.py         # API végpontok, AI logika, DB modellek és Pydantic sémák
 └── docs/               # Szakdolgozati dokumentációk és UX tervek
     ├── ux/             # Wireframe-ek, Pageflow, Képernyőképek
-    └── system/         # Architektúra tervek
+    ├── system/         # Architektúra tervek
+    └── szakdolgozat_Foldes_Balazs_NYCLM8.pdf/         # Szakdolgozat minta/alapja
 
 
 
