@@ -444,7 +444,7 @@ useEffect(() => {
     return url;
   };
 
-  const handleUpdateProfile = async () => {
+const handleUpdateProfile = async () => {
     setIsActionLoading(true);
     try {
       const payload = {
@@ -462,9 +462,16 @@ useEffect(() => {
         profile_picture_url: profileData.profilePictureUrl
       };
 
+      // --- ÚJ: KIVESSZÜK A TOKENT A LOCALSTORAGE-BŐL ---
+      const token = localStorage.getItem("boosted_token");
+
       const res = await fetch(`http://localhost:8000/api/user/${userId}/profile`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          // --- ÚJ: FELMUTATJUK AZ ŐRNEK A TOKENT ---
+          "Authorization": `Bearer ${token}` 
+        },
         body: JSON.stringify(payload),
       });
 
@@ -474,7 +481,12 @@ useEffect(() => {
         setLoggedInFirstName(profileData.firstName);
         setLoggedInLastName(profileData.lastName);
       } else {
-        triggerAlert("Hiba a profil mentésekor.", "error");
+        // Opcionális: Ha nagyon pro akarsz lenni, a 401/403-as hibákat is le lehet külön kezelni
+        if (res.status === 401 || res.status === 403) {
+            triggerAlert("Nincs jogosultságod a profil szerkesztésére. Kérlek jelentkezz be újra!", "error");
+        } else {
+            triggerAlert("Hiba a profil mentésekor.", "error");
+        }
       }
     } catch (error) {
       triggerAlert("Szerver hiba.", "error");
@@ -791,6 +803,11 @@ useEffect(() => {
 
       if (res.ok) {
         const data = await res.json();
+
+        if (data.access_token) {
+          localStorage.setItem("boosted_token", data.access_token);
+        }
+
         setLoggedInFirstName(data.first_name); 
         setLoggedInLastName(data.last_name); 
         setUserRole(data.role); 
@@ -860,6 +877,7 @@ useEffect(() => {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem("boosted_token");
     // 1. Alapadatok törlése (itt volt a hiba, kivettük a setLoggedInUser-t)
     setCoachId(null); setUserRole(""); setUserId(null); setUserSpecialization("");
     

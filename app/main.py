@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Date, Float, ForeignKey
 from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
-import hashlib
+import bcrypt
 import secrets
 import json
 from datetime import datetime, timedelta
@@ -11,6 +11,8 @@ from typing import Optional
 import google.generativeai as genai
 from dotenv import load_dotenv
 import os
+import jwt
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 load_dotenv()
 
@@ -26,6 +28,21 @@ if not GEMINI_API_KEY:
     raise RuntimeError("HIBA: Nincs beállítva a GEMINI_API_KEY a .env fájlban!")
 
 genai.configure(api_key=GEMINI_API_KEY)
+
+
+# --- Jelszótitkosítás beállítása (Tiszta Bcrypt) ---
+def get_password_hash(password: str) -> str:
+    # A bcrypt bájtokat vár, ezért utf-8-ra kódoljuk
+    pwd_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password=pwd_bytes, salt=salt)
+    # Visszaalakítjuk stringgé, hogy az adatbázis el tudja menteni
+    return hashed_password.decode('utf-8')
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    password_bytes = plain_password.encode('utf-8')
+    hashed_bytes = hashed_password.encode('utf-8')
+    return bcrypt.checkpw(password=password_bytes, hashed_password=hashed_bytes)
 
 
 # --- 2. Modellek ---
@@ -194,12 +211,57 @@ def get_db():
 def get_monday(d: datetime.date) -> datetime.date:
     return d - timedelta(days=d.weekday())
 
+# --- JWT Authentikáció beállítása ---
+SECRET_KEY = "boosted_super_secret_jwt_key_for_thesis_defense"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 napig érvényes token
+
+security = HTTPBearer()
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    
+    # Létrehozzuk a tokent
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    
+    # BIZTOSÍTÉK: Ha a Python verziód miatt 'bytes'-ot generálna, szöveggé alakítjuk!
+    if isinstance(encoded_jwt, bytes):
+        return encoded_jwt.decode('utf-8')
+    return encoded_jwt
+
+# Ezt a függvényt fogjuk rárakni a végpontokra "őrként"
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        
+        # BIZTOSÍTÉK: Kiolvassuk a 'sub'-ot és azonnal számmá alakítjuk
+        user_id_str = payload.get("sub")
+        if user_id_str is None:
+            raise HTTPException(status_code=401, detail="Érvénytelen token (nincs user_id)")
+        
+        user_id = int(user_id_str)
+        
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="A token lejárt! Kérlek lépj be újra.")
+    except Exception as e:
+        # Ha bármi más hiba van a tokenben, kiírjuk a konzolba, hogy lássuk mi az!
+        print(f"JWT Hiba a visszafejtésnél: {e}")
+        raise HTTPException(status_code=401, detail="Érvénytelen token!")
+        
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=401, detail="A tokenhez tartozó felhasználó nem található.")
+    return user
+
 # --- 4. Végpontok ---
 @app.post("/api/register")
 def register(user: UserRegister, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == user.email).first():
         raise HTTPException(status_code=400, detail="Ez az email már regisztrálva van!")
-    hashed_pw = hashlib.sha256(user.password.encode()).hexdigest()
+    hashed_pw = get_password_hash(user.password)
     
     new_user = User(
         email=user.email, password_hash=hashed_pw, 
@@ -213,7 +275,7 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
 @app.post("/api/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
-    if not db_user or db_user.password_hash != hashlib.sha256(user.password.encode()).hexdigest():
+    if not db_user or not verify_password(user.password, db_user.password_hash):
         raise HTTPException(status_code=400, detail="Hibás email vagy jelszó!")
     
     current_plan = "{}"
@@ -242,8 +304,12 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 
     join_date_str = db_user.join_date.strftime("%Y.%m.%d") if db_user.join_date else None
 
+    access_token = create_access_token(data={"sub": str(db_user.id), "role": db_user.role})
+
     return {
-        "message": "Sikeres belépés!", 
+        "message": "Sikeres belépés!",
+        "access_token": access_token,
+        "token_type": "bearer",
         "first_name": db_user.first_name, 
         "last_name": db_user.last_name, 
         "coach_id": db_user.coach_id, 
@@ -272,7 +338,16 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 
 # Profil frissítése (JAVÍTVA)
 @app.put("/api/user/{user_id}/profile")
-def update_profile(user_id: int, profile: ProfileUpdate, db: Session = Depends(get_db)):
+def update_profile(
+    user_id: int, 
+    profile: ProfileUpdate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # <--- EZ AZ ŐR! Itt kérjük el a JWT tokent!
+):
+    # Biztonsági ellenőrzés: Csak a saját profilját módosíthatja!
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Nincs jogosultságod ezt a profilt szerkeszteni!")
+        
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Felhasználó nem található")
@@ -322,7 +397,7 @@ def register_client(req: ClientRegister, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == req.email).first():
         raise HTTPException(status_code=400, detail="Ez az email már regisztrálva van!")
 
-    hashed_pw = hashlib.sha256(req.password.encode()).hexdigest()
+    hashed_pw = get_password_hash(req.password)
     new_client = User(
         email=req.email, password_hash=hashed_pw, 
         first_name=req.first_name, last_name=req.last_name, 
