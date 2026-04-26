@@ -1,20 +1,41 @@
-# Boosted 2.0 – Personal Trainer Management & AI Analytics
+# Boosted 2.0 – Next-Gen Personal Trainer Management & AI Analytics
 
-Ez a projekt a szakdolgozatom központi eleme, amely egy modern, adatközpontú platformot kínál személyi edzők és klienseik számára. A **Boosted 2.0** célja, hogy az edzők ne csak a súlyokat és az ismétlésszámokat lássák, hanem a klienseik biometrikus és életmódbeli adatait (alvás, stressz, energia) is, amelyekből az MI automatizált riportokat generál.
+A **Boosted 2.0** a szakdolgozatom központi eleme: egy modern, adatközpontú és gamifikált platform, amely forradalmasítja a személyi edzők és klienseik közös munkáját. 
 
-## 🚀 Főbb funkciók
-- **Coach Dashboard:** Átlátható felület az edzőknek a kliensek napi állapotának követésére.
-- **Client Daily Logs:** Egyszerű, csúszkás felület a klienseknek (alvás, stressz, víz, hangulat).
-- **AI-Powered Insights:** Automatikus trendelemzés és összefoglaló jelentések készítése a napi adatokból.
-- **Invitation System:** Biztonságos, edző által generált meghívó alapú regisztráció a klienseknek.
+A platform célja, hogy az edzők túlmutassanak a hagyományos (csak súlyokat és ismétléseket rögzítő) edzésterveken. A Boosted segítségével a szakértők átfogó képet kapnak a kliensek biometrikus adatairól (alvás, stressz, folyadékbevitel, hangulat), miközben a **Google Gemini AI** automatizált trendelemzésekkel, prediktív sérülés-előrejelzéssel és okos riasztásokkal segíti a munkájukat.
 
-## 🛠 Technológiai stack
-- **Frontend:** Next.js 16+, Tailwind CSS 4, TypeScript
-- **Backend:** Python 3.x, FastAPI
-- **Database:** PostgreSQL (vagy SQLite fejlesztés alatt)
-- **Data Engineering:** Pandas az adatelemzéshez, OpenAI/Gemini API a riportokhoz.
+## Főbb funkciók
 
-## 📂 Felépítés
-- `/frontend`: A Next.js webalkalmazás
-- `/app`: A FastAPI szerver és az adatbázis-logika
-- `/docs`: Dokumentáció és tervek
+* 📊 **Dinamikus Edzői Dashboard:** Átlátható, statisztikákkal és interaktív grafikonokkal (Recharts) felszerelt felület a kliensek fejlődésének követésére. Csapat szintű átlagok és okos riasztások (pl. tartósan magas stresszszint esetén).
+* 🧠 **Gemini AI Asszisztens (Neural Engine):** A napi naplók és edzői jegyzetek alapján az MI személyre szabott kockázatelemzést (sérülés, kiégés), célelőrejelzést és rejtett mintázatok felismerését végzi el mind az edző, mind a kliens számára.
+* ⚡ **Gamifikáció (Boost Rendszer):** Beépített motivációs eszközök a kliensek számára. Folyamatos naplózásért járó "Széria" (Streak) számláló, valamint az edző által küldhető azonnali "Boost" értesítések.
+* 📝 **Részletes Napi Naplózás:** Modern, csúszkás (slider) felület a klienseknek, ahol 1 perc alatt rögzíthető az alvás, a stressz, a víz, az edzésintenzitás, a lépésszám és a napi hangulat.
+* 📅 **Heti Tervező & PDF Export:** Az edzők napra lebontva tervezhetik meg az edzéseket, amelyeket egy kattintással formázott, offline is használható PDF formátumba exportálhatnak a klienseknek.
+* 🔐 **Biztonságos Meghívó Rendszer:** Exkluzív csatlakozási folyamat, ahol a kliensek csak az edző által generált egyedi, időkorlátos tokenekkel (linkekkel) regisztrálhatnak.
+
+## Technológiai Stack
+
+**Frontend:**
+* **Keretrendszer:** Next.js (App Router), React
+* **Dizájn & UI:** Tailwind CSS v4, teljesen reszponzív, modern "glassmorphism" felületek
+* **Adatvizualizáció & Export:** Recharts (oszlop- és vonaldiagramok), jsPDF
+
+**Backend:**
+* **Keretrendszer:** Python 3.x, FastAPI (aszinkron, villámgyors REST API)
+* **Mesterséges Intelligencia:** Google Generative AI (Gemini modell) a komplex kontextuselemzéshez és strukturált JSON válaszok generálásához.
+* **Adatbázis & ORM:** SQLite (MVP fázisban), SQLAlchemy ORM, Pydantic (szigorú adatvalidáció)
+* **Biztonság:** Hash-alapú authentikáció, CORS middleware.
+
+## 📂 Repository Felépítése
+
+```text
+Boosted-2.0/
+├── boosted.db          # SQLite adatbázis (fejlesztői környezet)
+├── frontend/           # A Next.js webalkalmazás (UI, kliens és edzői nézetek)
+│   ├── src/app/        # Oldalak és komponensek (page.js)
+│   └── public/         # Statikus fájlok
+├── app/            # A FastAPI szerver
+│   ├── main.py         # API végpontok, AI logika, DB modellek és Pydantic sémák
+└── docs/               # Szakdolgozati dokumentációk és UX tervek
+    ├── ux/             # Wireframe-ek, Pageflow, Képernyőképek
+    └── system/         # Architektúra tervek
