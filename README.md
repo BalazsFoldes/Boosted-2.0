@@ -39,3 +39,33 @@ Boosted-2.0/
 └── docs/               # Szakdolgozati dokumentációk és UX tervek
     ├── ux/             # Wireframe-ek, Pageflow, Képernyőképek
     └── system/         # Architektúra tervek
+
+
+
+⚙️ Futtatási útmutató (Development)
+1. Előfeltételek
+A gyökérkönyvtárban hozz létre egy .env fájlt az alábbi tartalommal:
+GEMINI_API_KEY=IDE_A_TE_KULCSOD
+
+2. Telepítés
+Telepítsd a szükséges függőségeket (érdemes virtuális környezetben):
+
+Bash
+# Backend
+pip install fastapi uvicorn sqlalchemy bcrypt PyJWT python-dotenv google-generativeai
+
+# Frontend
+cd frontend
+npm install
+3. Indítás
+Windows alatt egyszerűen futtasd a gyökérben található parancsfájlt:
+
+Bash
+start-dev.bat
+Ez automatikusan elindítja a backendet (port 8000) és a frontendet (port 3000).
+
+✅ Tesztelés
+A backend tesztek futtatásához használd a következő parancsot az app mappában:
+
+Bash
+python -m pytest test_main.py -v
