@@ -42,7 +42,9 @@ export default function Home() {
     experienceYears: "",
     motivationQuote: "",
     joinDate: "",
-    profilePictureUrl: ""
+    profilePictureUrl: "",
+    averageRating: 0,
+    reviewCount: 0
   });
 
   const [boostedClientsToday, setBoostedClientsToday] = useState({});
@@ -146,6 +148,12 @@ export default function Home() {
 
   const [assignedCoachData, setAssignedCoachData] = useState(null);
 
+  const [isDisconnectModalOpen, setIsDisconnectModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState("");
+
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [clientEmail, setClientEmail] = useState("");
   const [generatedLink, setGeneratedLink] = useState("");
@@ -625,6 +633,67 @@ const handleUpdateProfile = async () => {
     }
   };
 
+  const handleDisconnectConfirm = async () => {
+    setIsActionLoading(true);
+    try {
+      // JAVÍTÁS: Itt helyben ellenőrizzük a szerepkört!
+      const checkIsCoach = userRole === "COACH"; 
+      
+      const targetClientId = checkIsCoach ? selectedClient.id : userId;
+      const targetCoachId = checkIsCoach ? coachId : (assignedCoachData?.id || coachId);
+
+      const res = await fetch("http://localhost:8000/api/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: targetClientId, coach_id: targetCoachId })
+      });
+
+      if (res.ok) {
+        setIsDisconnectModalOpen(false);
+        if (checkIsCoach) {
+          triggerAlert("Kapcsolat megszakítva a klienssel.", "success");
+          setClients(clients.filter(c => c.id !== selectedClient.id));
+          setSelectedClient(null);
+        } else {
+          // Ha a kliens bontott kapcsolatot, nyissuk meg az értékelő ablakot!
+          setIsReviewModalOpen(true);
+        }
+      } else {
+        triggerAlert("Hiba a kapcsolat megszakításakor.", "error");
+      }
+    } catch (err) {
+      console.error(err); // Ha legközelebb hiba van, lássuk a böngésző konzoljában!
+      triggerAlert("Rendszer hiba a megszakításkor.", "error");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleReviewSubmit = async () => {
+    setIsActionLoading(true);
+    try {
+      const targetCoachId = assignedCoachData?.id || coachId;
+      const res = await fetch(`http://localhost:8000/api/coach/${targetCoachId}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: userId, rating: reviewRating, review_text: reviewText })
+      });
+      
+      if (res.ok) {
+        triggerAlert("Köszönjük az értékelést!", "success");
+        setIsReviewModalOpen(false);
+        // Kiléptetjük a klienst, mert már nincs edzője
+        handleLogout();
+      } else {
+        triggerAlert("Hiba történt az értékelés mentésekor.", "error");
+      }
+    } catch (err) {
+      triggerAlert("Szerver hiba.", "error");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
   const handleSendBoost = async () => {
     // Limit ellenőrzése
     if (boostedClientsToday[selectedClient.id]) {
@@ -825,7 +894,9 @@ const handleUpdateProfile = async () => {
           experienceYears: data.experience_years || "",
           motivationQuote: data.motivation_quote || "",
           joinDate: data.join_date || "Ismeretlen",
-          profilePictureUrl: data.profile_picture_url || ""
+          profilePictureUrl: data.profile_picture_url || "",
+          averageRating: data.average_rating || 0,
+          reviewCount: data.review_count || 0
         });
         
         if (data.role === "CLIENT") {
@@ -1681,6 +1752,26 @@ const handleUpdateProfile = async () => {
                     </div>
                   </div>
                 </div>
+
+                {/* ========================================== */}
+                {/* ÚJ: VESZÉLYES ZÓNA AZ ADATLAP ALJÁN        */}
+                {/* ========================================== */}
+                <div className="mt-12 bg-red-50/40 border border-red-100 rounded-3xl p-8 md:p-10 relative overflow-hidden animate-fade-in-up">
+                  <div className="relative z-10 flex flex-col md:flex-row justify-between items-center md:items-end gap-6">
+                    <div className="max-w-2xl text-center md:text-left">
+                      <h3 className="text-xl font-extrabold text-red-800 mb-2">Kapcsolat megszakítása</h3>
+                      <p className="text-sm text-red-600/80 font-medium leading-relaxed">
+                        A megszakítással a kliens fiókja, valamint az összes naplója és edzésterve véglegesen törlésre kerül a rendszerből. Ez a művelet nem visszavonható!
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => setIsDisconnectModalOpen(true)} 
+                      className="px-6 py-3.5 bg-white border border-red-200 text-red-600 font-bold rounded-xl hover:bg-red-600 hover:text-white hover:border-red-600 transition-all flex items-center shadow-sm text-sm shrink-0"
+                    >
+                      Fiók törlése
+                    </button>
+                  </div>
+                </div>
               </div>
             )
           )}
@@ -2018,10 +2109,18 @@ const handleUpdateProfile = async () => {
                           <span className="text-gray-600">Aktív kliensek</span>
                           <span className={`font-bold ${themeText} ${themeBg} px-3 py-1 rounded-lg`}>{clients.length} fő</span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center pb-4 border-b border-gray-100">
                           <span className="text-gray-600 pr-2">Kiosztott Boostok</span>
                           <span className="font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-lg whitespace-nowrap shadow-sm">
                             {clients.reduce((sum, c) => sum + (c.total_boosts || 0), 0)} db
+                          </span>
+                        </div>
+                        {/* ÚJ: Edzői Saját Értékelés */}
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 pr-2">Átlagos Értékelés</span>
+                          <span className="font-bold text-yellow-600 bg-yellow-50 px-3 py-1 rounded-lg flex items-center shadow-sm">
+                            ⭐ {profileData.averageRating > 0 ? profileData.averageRating.toFixed(1) : "-"} 
+                            <span className="text-xs text-yellow-500 ml-1">({profileData.reviewCount} db)</span>
                           </span>
                         </div>
                       </div>
@@ -2106,6 +2205,14 @@ const handleUpdateProfile = async () => {
                               <span className="text-xl font-bold">→</span>
                             </div>
                           </div>
+                          
+                          {/* ÚJ: Kapcsolat megszakítása gomb kliensnek */}
+                          <button 
+                            onClick={() => setIsDisconnectModalOpen(true)}
+                            className="w-full mt-3 py-2 border border-red-200 text-red-500 font-bold rounded-xl hover:bg-red-50 hover:text-red-600 transition text-xs uppercase tracking-wider shadow-sm"
+                          >
+                            Kapcsolat megszakítása
+                          </button>
                         </div>
                       )}
 
@@ -2862,11 +2969,17 @@ const handleUpdateProfile = async () => {
                         <span className="text-3xl font-extrabold text-gray-900">Aktív</span>
                       </div>
 
+                      {/* DINAMIKUS ÉRTÉKELÉS DOBOZ */}
                       <div className="bg-orange-50/30 p-6 rounded-2xl border border-orange-100 flex flex-col items-center sm:items-start justify-center hover:shadow-md transition-shadow">
                          <div className="flex items-center gap-2 mb-2">
                            <span className="text-[10px] lg:text-xs font-bold text-orange-600 uppercase tracking-wider">Értékelés</span>
                         </div>
-                        <span className="text-3xl font-extrabold text-gray-900">5.0 <span className="text-base font-medium text-gray-400">/ 5</span></span>
+                        <span className="text-3xl font-extrabold text-gray-900">
+                          {assignedCoachData?.average_rating > 0 ? assignedCoachData.average_rating.toFixed(1) : "-"} 
+                          <span className="text-base font-medium text-gray-400 ml-1">
+                            / 5 <span className="text-sm">({assignedCoachData?.review_count || 0})</span>
+                          </span>
+                        </span>
                       </div>
                     </div>
 
@@ -3020,6 +3133,71 @@ const handleUpdateProfile = async () => {
                 className="w-full mt-6 py-3.5 bg-gray-100 text-gray-800 font-bold rounded-xl hover:bg-gray-200 transition text-sm"
               >
                 Mégse
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* ÚJ: KAPCSOLAT MEGSZAKÍTÁSA MEGERŐSÍTŐ MODAL */}
+        {/* ========================================== */}
+        {isDisconnectModalOpen && (
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md flex items-center justify-center z-[250] p-4">
+            <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md relative text-center">
+              <h3 className="text-2xl font-extrabold text-gray-900 mb-2">Biztosan megszakítod a kapcsolatot?</h3>
+              <p className="text-sm text-gray-600 mb-8 font-medium">
+                {isCoach 
+                  ? "A kliens azonnal lekerül a listádról, és többé nem látod az adatait." 
+                  : "Többé nem kapod meg az edzéstervedet, és az edződ nem látja a naplóidat."}
+                Ez a folyamat nem vonható vissza!
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setIsDisconnectModalOpen(false)} className="flex-1 py-3.5 bg-gray-100 text-gray-800 font-bold rounded-xl hover:bg-gray-200 transition">
+                  Mégse
+                </button>
+                <button onClick={handleDisconnectConfirm} disabled={isActionLoading} className="flex-1 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition shadow-md">
+                  Igen, megszakítom
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* ÚJ: ÉRTÉKELÉS MODAL (KLIENSNEK MEGSZAKÍTÁS UTÁN) */}
+        {/* ========================================== */}
+        {isReviewModalOpen && !isCoach && (
+          <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex items-center justify-center z-[300] p-4">
+            <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md relative text-center animate-fade-in-up">
+              <div className="h-20 w-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-3xl font-extrabold text-white mx-auto mb-4 shadow-lg">
+                {assignedCoachName ? assignedCoachName.charAt(0).toUpperCase() : "E"}
+              </div>
+              <h3 className="text-2xl font-extrabold text-gray-900 mb-1">Értékeld a közös munkát!</h3>
+              <p className="text-sm text-gray-500 mb-6 font-medium">Milyen volt együtt dolgozni a szakértőddel?</p>
+              
+              {/* Csillagos értékelés */}
+              <div className="flex justify-center gap-2 mb-6">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button 
+                    key={star} 
+                    onClick={() => setReviewRating(star)}
+                    className={`text-4xl transition-transform hover:scale-110 ${star <= reviewRating ? 'text-yellow-400 drop-shadow-sm' : 'text-gray-200'}`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+
+              <textarea 
+                rows="3" 
+                placeholder="Írj pár szót az edződről (opcionális)..." 
+                value={reviewText} 
+                onChange={(e) => setReviewText(e.target.value)}
+                className="w-full border border-gray-200 p-4 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-medium text-gray-800 resize-none mb-6 bg-gray-50"
+              />
+
+              <button onClick={handleReviewSubmit} disabled={isActionLoading} className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-extrabold rounded-xl hover:opacity-90 transition shadow-lg">
+                {isActionLoading ? "Küldés..." : "Értékelés beküldése"}
               </button>
             </div>
           </div>

@@ -78,3 +78,34 @@ def test_update_plan_not_monday():
     
     assert response.status_code == 400
     assert response.json() == {"detail": "A kezdő dátumnak hétfőnek kell lennie!"}
+
+def test_send_boost_nonexistent_client():
+    """8. TESZT: Motivációs Boost küldése egy nem létező kliensnek."""
+    # Olyan ID-t adunk meg, ami biztosan nincs az adatbázisban (pl. 99999)
+    response = client.post("/api/client/99999/boost")
+    
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Kliens nem található"}
+
+def test_disconnect_nonexistent_relation():
+    """9. TESZT: Kapcsolat megszakításának próbája érvénytelen azonosítókkal."""
+    payload = {
+        "client_id": 99999,
+        "coach_id": 99999
+    }
+    response = client.post("/api/disconnect", json=payload)
+    
+    # Mivel ez a kapcsolat nem létezik, a szervernek 404-et kell dobnia
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Kapcsolat nem található."}
+
+def test_ai_chat_validation_error():
+    """10. TESZT: AI chat végpont Pydantic adatvalidációja."""
+    # A ChatRequest elvárja a 'messages' listát és a 'user_type' stringet.
+    # Itt szándékosan kihagyjuk a 'messages' listát!
+    response = client.post("/api/chat", json={
+        "user_type": "COACH"
+    })
+    
+    # A Pydantic azonnal megfogja, és 422 Unprocessable Entity hibát dob
+    assert response.status_code == 422

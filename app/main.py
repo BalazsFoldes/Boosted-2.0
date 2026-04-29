@@ -80,6 +80,9 @@ class User(Base):
     total_boosts = Column(Integer, default=0)
     has_unseen_boost = Column(Boolean, default=False)
 
+    average_rating = Column(Float, default=0.0)
+    review_count = Column(Integer, default=0)
+
 class Invite(Base):
     __tablename__ = "invites"
     id = Column(Integer, primary_key=True, index=True)
@@ -112,6 +115,14 @@ class WeeklyPlan(Base):
     plan_data = Column(String, default="{}")
     # ÚJ: Nehézségi szint
     difficulty_level = Column(String, default="Közepes") 
+
+class Review(Base):
+    __tablename__ = "reviews"
+    id = Column(Integer, primary_key=True, index=True)
+    coach_id = Column(Integer, index=True)
+    client_id = Column(Integer)
+    rating = Column(Integer)
+    review_text = Column(String, nullable=True)
 
 Base.metadata.create_all(bind=engine)
 
@@ -185,6 +196,15 @@ class PlanUpdate(BaseModel):
 class NoteUpdate(BaseModel): 
     coach_notes: str
 
+
+class DisconnectRequest(BaseModel):
+    client_id: int
+    coach_id: int
+
+class ReviewCreate(BaseModel):
+    client_id: int
+    rating: int
+    review_text: str = ""
 
 class ChatMessageItem(BaseModel):
     role: str # "user" vagy "assistant"
@@ -294,12 +314,15 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
                 coach_name = f"{coach.last_name} {coach.first_name}"
                 # ÚJ: Kinyerjük az edző publikus adatait
                 coach_data = {
+                    "id": coach.id,
                     "city": coach.city,
                     "bio": coach.bio,
                     "experience_years": coach.experience_years,
                     "motivation_quote": coach.motivation_quote,
                     "join_date": coach.join_date.strftime("%Y.%m.%d") if coach.join_date else None,
-                    "profile_picture_url": coach.profile_picture_url
+                    "profile_picture_url": coach.profile_picture_url,
+                    "average_rating": coach.average_rating,
+                    "review_count": coach.review_count
                 }
 
     join_date_str = db_user.join_date.strftime("%Y.%m.%d") if db_user.join_date else None
@@ -321,19 +344,19 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "has_unseen_boost": db_user.has_unseen_boost,
         "coach_name": coach_name,
         "coach_data": coach_data,
-        # Profil adatok visszaadása
         "height": db_user.height,
         "current_weight": db_user.current_weight,
         "goal_weight": db_user.goal_weight,
         "primary_goal": db_user.primary_goal,
         "diet_allergies": db_user.diet_allergies,
-        # ÚJ MEZŐK:
         "join_date": join_date_str,
         "city": db_user.city,
         "bio": db_user.bio,
         "experience_years": db_user.experience_years,
         "motivation_quote": db_user.motivation_quote,
-        "profile_picture_url": db_user.profile_picture_url
+        "profile_picture_url": db_user.profile_picture_url,
+        "average_rating": db_user.average_rating,
+        "review_count": db_user.review_count
     }
 
 # Profil frissítése (JAVÍTVA)
@@ -669,7 +692,45 @@ def chat_with_ai(req: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gemini AI Hiba: {str(e)}")
     
+
+# ==========================================
+# ÚJ: KAPCSOLAT MEGSZAKÍTÁSA ÉS ÉRTÉKELÉS
+# ==========================================
+@app.post("/api/disconnect")
+def disconnect_users(req: DisconnectRequest, db: Session = Depends(get_db)):
+    client = db.query(User).filter(User.id == req.client_id, User.role == "CLIENT").first()
+    if not client or client.coach_id != req.coach_id:
+        raise HTTPException(status_code=404, detail="Kapcsolat nem található.")
     
+    # 1. Töröljük a klienshez tartozó naplókat és terveket, hogy ne szemeteljenek
+    db.query(DailyLog).filter(DailyLog.client_id == client.id).delete()
+    db.query(WeeklyPlan).filter(WeeklyPlan.client_id == client.id).delete()
+    
+    # 2. Véglegesen töröljük magát a kliens fiókot
+    db.delete(client)
+    db.commit()
+    
+    return {"message": "Kapcsolat megszakítva és a kliens fiók véglegesen törölve."}
+
+@app.post("/api/coach/{coach_id}/review")
+def submit_review(coach_id: int, review: ReviewCreate, db: Session = Depends(get_db)):
+    coach = db.query(User).filter(User.id == coach_id, User.role == "COACH").first()
+    if not coach:
+        raise HTTPException(status_code=404, detail="Edző nem található.")
+    
+    # Értékelés mentése
+    new_review = Review(coach_id=coach_id, client_id=review.client_id, rating=review.rating, review_text=review.review_text)
+    db.add(new_review)
+    db.commit() # Először mentjük, hogy benne legyen az adatbázisban
+    
+    # Edző átlagának újraszámolása
+    all_reviews = db.query(Review).filter(Review.coach_id == coach_id).all()
+    coach.review_count = len(all_reviews)
+    if coach.review_count > 0:
+        coach.average_rating = round(sum(r.rating for r in all_reviews) / coach.review_count, 1)
+    
+    db.commit()
+    return {"message": "Értékelés sikeresen elmentve!"}
 
 # ==========================================
 # ÚJ: DINAMIKUS AI DASHBOARD GENERÁLÓ (GEMINI 2.5 FLASH)
