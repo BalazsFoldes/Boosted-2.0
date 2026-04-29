@@ -1777,20 +1777,28 @@ const handleUpdateProfile = async () => {
           )}
 
           {/* ========================================== */}
-          {/* 1. ÁTTEKINTÉS TAB (ALAP NÉZET)               */}
+          {/* 1. ÁTTEKINTÉS TAB (MODERNIZÁLT ALAP NÉZET)   */}
           {/* ========================================== */}
           {currentTab === "overview" && !selectedClient && (
             <div className="animate-fade-in-up">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
-                <div>
-                  <h1 className="text-3xl font-extrabold text-gray-900">Szia, {loggedInFirstName}!</h1>
-                  <p className="text-gray-500 mt-2">
-                    {isCoach ? "Itt találod majd a klienseid adatait és az elemzéseket." : "Itt rögzítheted a napi adataidat a szakértőd számára."}
+              
+              {/* Üdvözlő fejléc */}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+                <div className="relative">
+                  <div className={`absolute -left-4 -top-4 w-16 h-16 rounded-full blur-2xl opacity-20 pointer-events-none ${isCoach ? 'bg-purple-500' : 'bg-emerald-500'}`}></div>
+                  <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight relative z-10 mb-2">
+                    Szia, <span className={`text-transparent bg-clip-text bg-gradient-to-r ${themeGradient}`}>{loggedInFirstName}</span>!
+                  </h1>
+                  <p className="text-slate-500 font-medium text-lg relative z-10">
+                    {isCoach ? "Készen állsz a mai napra? Itt a praxisod összefoglalója." : "Kövesd a fejlődésed és maradj fókuszban!"}
                   </p>
                 </div>
                 {isCoach && (
-                  <button onClick={() => setIsModalOpen(true)} className="flex items-center px-6 py-3 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition shadow-md w-full sm:w-auto justify-center">
-                    <span className="text-xl mr-2">+</span> Új kliens meghívása
+                  <button onClick={() => setIsModalOpen(true)} className={`group relative flex items-center px-7 py-3.5 bg-gradient-to-r ${themeGradient} text-white font-bold rounded-2xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 w-full md:w-auto justify-center overflow-hidden`}>
+                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
+                    <span className="relative z-10 flex items-center">
+                      <span className="text-xl mr-2 leading-none mb-0.5">+</span> Új kliens meghívása
+                    </span>
                   </button>
                 )}
               </div>
@@ -1798,77 +1806,76 @@ const handleUpdateProfile = async () => {
               {isCoach ? (
                 /* --- EDZŐI TARTALOM --- */
                 clients.length === 0 ? (
-                  <div className="bg-white rounded-2xl shadow-sm border border-dashed border-gray-300 p-16 text-center">
-                    <div className="text-5xl mb-4 opacity-50">📂</div>
-                    <h3 className="text-xl font-bold text-gray-700 mb-2">Még nincsenek klienseid</h3>
-                    <p className="text-gray-500 max-w-md mx-auto text-base">Küldj ki egy meghívó linket az első kliensednek, hogy elkezdhesse naplózni az adatait!</p>
+                  <div className="bg-white/60 backdrop-blur-xl rounded-[2.5rem] shadow-sm border border-slate-200/60 p-16 text-center relative overflow-hidden group">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-400/10 rounded-full blur-3xl pointer-events-none transition-all group-hover:bg-purple-400/20"></div>
+                    <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-500">📂</div>
+                    <h3 className="text-2xl font-extrabold text-slate-800 mb-3 tracking-tight">Még nincsenek klienseid</h3>
+                    <p className="text-slate-500 max-w-md mx-auto text-base font-medium">Küldj ki egy meghívó linket az első kliensednek, hogy elkezdhesse naplózni az adatait és beinduljon a közös munka!</p>
                   </div>
                 ) : (
-                  <div className="space-y-8">
+                  <div className="space-y-10">
                     
-                    {/* ========================================== */}
-                    {/* GYORS STATISZTIKA KÁRTYÁK (DINAMIKUS)        */}
-                    {/* ========================================== */}
+                    {/* --- GYORS STATISZTIKA KÁRTYÁK --- */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up">
-                      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-center relative overflow-hidden group hover:border-blue-300 transition-colors">
-                        <div className="absolute -right-6 -top-6 text-8xl opacity-[0.03] group-hover:scale-110 transition-transform">📝</div>
-                        <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Mai naplózások</h4>
-                        <div className="flex items-end gap-2 mb-3">
-                          <span className="text-5xl font-extrabold text-gray-900">{dashboardStats?.today_logs_count || 0}</span>
-                          <span className="text-xl font-medium text-gray-400 mb-1">/ {clients.length || 0} kliens</span>
+                      <div className="bg-white p-7 rounded-3xl shadow-sm border border-slate-200/60 flex flex-col justify-center relative overflow-hidden group hover:border-blue-300 hover:shadow-md transition-all">
+                        <div className="absolute -right-6 -top-6 text-8xl opacity-[0.03] group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500">📝</div>
+                        <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">Mai naplózások</h4>
+                        <div className="flex items-end gap-2 mb-4">
+                          <span className="text-5xl font-black text-slate-900 tracking-tighter">{dashboardStats?.today_logs_count || 0}</span>
+                          <span className="text-lg font-bold text-slate-400 mb-1.5">/ {clients.length || 0} kliens</span>
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                           <div 
-                            className="bg-blue-500 h-2 rounded-full transition-all duration-1000" 
+                            className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-1000 ease-out relative" 
                             style={{ width: `${clients.length > 0 ? ((dashboardStats?.today_logs_count || 0) / clients.length) * 100 : 0}%` }}
-                          ></div>
+                          >
+                            <div className="absolute inset-0 bg-white/20 w-full animate-pulse"></div>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-center relative overflow-hidden group hover:border-orange-300 transition-colors">
-                        <div className="absolute -right-4 -top-2 text-7xl opacity-5 group-hover:scale-110 transition-transform">🔥</div>
-                        <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Aktív Szériák (Rekorder)</h4>
-                        <span className="text-3xl font-extrabold text-gray-900 truncate">{dashboardStats?.top_streak_client || "-"}</span>
-                        <span className="text-base font-bold text-orange-500 mt-2 flex items-center gap-1.5">
-                          <span className="text-lg">⚡</span> {dashboardStats?.top_streak_days || 0} napja folyamatosan
+                      <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-7 rounded-3xl shadow-sm border border-orange-100 flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-all">
+                        <div className="absolute -right-4 -top-2 text-7xl opacity-10 group-hover:scale-110 transition-transform duration-500">🔥</div>
+                        <h4 className="text-xs font-extrabold text-orange-400/80 uppercase tracking-widest mb-3">Aktív Szériák (Rekorder)</h4>
+                        <span className="text-3xl font-black text-orange-950 truncate tracking-tight">{dashboardStats?.top_streak_client || "-"}</span>
+                        <span className="text-sm font-extrabold text-orange-600 mt-3 flex items-center gap-2 bg-orange-100/50 w-fit px-3 py-1.5 rounded-xl">
+                          <span className="text-base">⚡</span> {dashboardStats?.top_streak_days || 0} napja folyamatosan
                         </span>
                       </div>
 
-                      <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 md:p-8 rounded-2xl shadow-sm text-white flex flex-col justify-center relative overflow-hidden">
-                        <div className="absolute -right-2 -bottom-4 text-7xl opacity-10">📉</div>
-                        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Csapat Átlag Stressz</h4>
-                        <div className="flex items-end gap-2 mb-1">
-                          <span className="text-5xl font-extrabold text-white">{dashboardStats?.average_stress || "0.0"}</span>
-                          <span className="text-xl text-slate-400 mb-1">/ 10</span>
+                      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-7 rounded-3xl shadow-lg text-white flex flex-col justify-center relative overflow-hidden group">
+                        <div className="absolute -right-2 -bottom-4 text-7xl opacity-10 group-hover:scale-110 transition-transform duration-500">📉</div>
+                        <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">Csapat Átlag Stressz</h4>
+                        <div className="flex items-end gap-2 mb-2">
+                          <span className="text-5xl font-black text-white tracking-tighter">{dashboardStats?.average_stress || "0.0"}</span>
+                          <span className="text-xl font-bold text-slate-500 mb-1.5">/ 10</span>
                         </div>
-                        <span className={`text-base font-medium mt-2 flex items-center gap-1.5 ${dashboardStats?.average_stress >= 7 ? "text-red-400" : "text-emerald-400"}`}>
+                        <span className={`text-sm font-bold mt-2 flex items-center gap-2 w-fit px-3 py-1.5 rounded-xl ${dashboardStats?.average_stress >= 7 ? "bg-red-500/20 text-red-400" : "bg-emerald-500/20 text-emerald-400"}`}>
                           {dashboardStats?.average_stress >= 7 ? "Magas stressz szint!" : "Ideális zónában van"}
                         </span>
                       </div>
                     </div>
 
-                    {/* ========================================== */}
-                    {/* FIGYELMET IGÉNYEL (DINAMIKUS OKOS RIASZTÁSOK)*/}
-                    {/* ========================================== */}
+                    {/* --- FIGYELMET IGÉNYEL (AI RIASZTÁSOK) --- */}
                     {dashboardStats?.alerts && dashboardStats.alerts.length > 0 && (
-                      <div className="bg-orange-50/50 border border-orange-200/60 rounded-3xl p-6 md:p-8 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                      <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200/60 rounded-[2rem] p-7 md:p-9 shadow-sm relative overflow-hidden animate-fade-in-up" style={{ animationDelay: '100ms' }}>
                         <div className="absolute right-0 top-0 w-64 h-64 bg-orange-400 opacity-5 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none"></div>
-                        <h3 className="text-lg font-extrabold text-orange-900 mb-6 flex items-center">
-                          <span className="bg-orange-200 text-orange-800 text-xs px-3 py-1 rounded-lg border border-orange-300 uppercase tracking-wider mr-3 shadow-sm">AI Asszisztens</span>
+                        <h3 className="text-xl font-black text-orange-950 mb-6 flex items-center tracking-tight">
+                          <span className="bg-gradient-to-r from-orange-400 to-red-500 text-white text-xs px-3 py-1.5 rounded-xl uppercase tracking-widest mr-4 shadow-sm font-extrabold">AI Asszisztens</span>
                           Figyelmet igényel ({dashboardStats.alerts.length})
                         </h3>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 relative z-10">
                           {dashboardStats.alerts.map((alert, idx) => (
-                            <div key={idx} className={`flex flex-col bg-white p-6 rounded-2xl shadow-sm border hover:shadow-md transition-shadow ${alert.type === "stress" ? "border-red-100" : "border-orange-100"}`}>
-                              <div className="flex items-start gap-4 mb-4">
+                            <div key={idx} className={`flex flex-col bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-sm border hover:shadow-md transition-all hover:-translate-y-0.5 ${alert.type === "stress" ? "border-red-100" : "border-orange-100"}`}>
+                              <div className="flex items-start gap-4 mb-5">
                                 <div className="text-3xl mt-0.5 drop-shadow-sm">{alert.type === "stress" ? "🚨" : "⚠️"}</div>
                                 <div>
-                                  <p className="font-bold text-gray-900 text-base">{alert.client_name}</p>
-                                  <p className="text-sm text-gray-500 mt-2 leading-relaxed">{alert.message}</p>
+                                  <p className="font-extrabold text-slate-900 text-lg tracking-tight">{alert.client_name}</p>
+                                  <p className="text-sm text-slate-600 mt-1.5 font-medium leading-relaxed">{alert.message}</p>
                                 </div>
                               </div>
-                              <button className={`mt-auto w-full py-3 text-sm font-bold rounded-xl transition border ${alert.type === "stress" ? "bg-red-50 text-red-700 hover:bg-red-100 border-red-100" : "bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-100"}`}>
+                              <button className={`mt-auto w-full py-3.5 text-sm font-bold rounded-xl transition-colors border ${alert.type === "stress" ? "bg-red-50 text-red-700 hover:bg-red-100 border-red-100" : "bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-100"}`}>
                                 {alert.type === "stress" ? "Terv módosítása →" : "Kapcsolatfelvétel →"}
                               </button>
                             </div>
@@ -1877,91 +1884,112 @@ const handleUpdateProfile = async () => {
                       </div>
                     )}
 
-                    {/* ========================================== */}
-                    {/* EREDETI KLIENSLISTA (Keresővel)              */}
-                    {/* ========================================== */}
-                    <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-                      <div className="px-8 py-3 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <h3 className="text-xl font-bold text-gray-900 whitespace-nowrap">Saját klienseim ({clients.length})</h3>
-                        {/* Kereső mező */}
-                        <div className="w-full sm:w-80 relative">
+                    {/* --- MODERN KLIENS KÁRTYA GRID NÉZET --- */}
+                    <div className="animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">Saját klienseim <span className="text-slate-400 font-bold text-lg ml-1">({clients.length})</span></h3>
+                        <div className="w-full sm:w-80 relative group">
                           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <span className="text-gray-400 text-lg"></span>
+                            <svg className="w-5 h-5 text-slate-400 group-focus-within:text-purple-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                           </div>
                           <input 
                             type="text" 
-                            placeholder="Keresés név vagy email alapján..." 
+                            placeholder="Keresés név alapján..." 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-11 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none bg-white text-slate-900 font-sans text-base font-medium tracking-wide transition-all shadow-sm"
+                            className="w-full pl-11 pr-4 py-3.5 border border-slate-200/80 rounded-2xl focus:ring-4 focus:ring-purple-500/10 focus:border-purple-500 outline-none bg-white text-slate-900 text-sm font-bold tracking-wide transition-all shadow-sm"
                           />
                         </div>
                       </div>
                       
                       {filteredClients.length === 0 ? (
-                        <div className="p-12 text-center text-gray-500 text-base font-medium bg-gray-50/30">
-                          <span className="text-5xl block mb-4 opacity-30"></span>
-                          Nincs találat a keresésre: &quot;{searchQuery}&quot;
+                        <div className="p-16 text-center text-slate-500 bg-white rounded-[2rem] border border-dashed border-slate-300 shadow-sm">
+                          <p className="text-lg font-bold">Nincs találat a keresésre: <span className="text-slate-800">"{searchQuery}"</span></p>
                         </div>
                       ) : (
-                        <ul className="divide-y divide-gray-100">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                           {filteredClients.map(client => (
-                            <li key={client.id} className="p-6 sm:px-8 flex items-center justify-between hover:bg-blue-50/30 transition cursor-pointer group" onClick={() => handleViewClient(client)}>
-                              <div className="flex items-center">
-                                <div className="h-14 w-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-extrabold text-2xl mr-5 shrink-0 group-hover:scale-105 transition-transform shadow-sm overflow-hidden">
+                            <div 
+                              key={client.id} 
+                              onClick={() => handleViewClient(client)}
+                              className="bg-white rounded-3xl p-6 border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1.5 hover:border-purple-200 transition-all cursor-pointer group relative overflow-hidden flex flex-col"
+                            >
+                              <div className="absolute -right-12 -top-12 w-40 h-40 bg-purple-50/50 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                              
+                              <div className="flex items-start gap-4 mb-6 relative z-10">
+                                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center font-black text-2xl shrink-0 group-hover:scale-105 transition-transform shadow-sm overflow-hidden">
                                   {client.profile_picture_url ? (
                                     <img src={getValidImageUrl(client.profile_picture_url)} alt="Kliens" className="h-full w-full object-cover" />
                                   ) : (
                                     client.last_name ? client.last_name.charAt(0).toUpperCase() : "K"
                                   )}
                                 </div>
-                                <div>
-                                  <p className="text-lg font-extrabold text-gray-900 mb-0.5">{client.last_name} {client.first_name}</p>
-                                  <p className="text-sm text-gray-500 font-medium">{client.email}</p>
+                                <div className="pt-1">
+                                  <p className="text-lg font-extrabold text-slate-900 leading-tight tracking-tight mb-1 group-hover:text-purple-700 transition-colors">{client.last_name} {client.first_name}</p>
+                                  <p className="text-xs font-bold text-slate-500 truncate">{client.email}</p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-4">
-                                {client.total_boosts > 0 && (
-                                  <span className="hidden sm:inline-flex items-center text-sm font-bold text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100">
-                                    <span className="mr-1.5 text-base">⚡</span> {client.total_boosts} Boost
-                                  </span>
-                                )}
-                                <button className="text-base bg-white border border-gray-200 px-5 py-2.5 rounded-xl text-gray-700 font-bold group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all shadow-sm ml-4 shrink-0">
-                                  Megtekintés
-                                </button>
+                              
+                              <div className="mt-auto flex justify-between items-center relative z-10 pt-4 border-t border-slate-100">
+                                <div>
+                                  {client.total_boosts > 0 ? (
+                                    <span className="inline-flex items-center text-[11px] font-extrabold text-orange-600 bg-orange-50 px-2.5 py-1.5 rounded-lg border border-orange-100 uppercase tracking-widest">
+                                      <span className="mr-1.5 text-sm">⚡</span> {client.total_boosts} Boost
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center text-[11px] font-extrabold text-slate-400 uppercase tracking-widest px-1 py-1.5">
+                                      Nincs aktív boost
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-600 transition-colors shadow-sm">
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"></path></svg>
+                                </div>
                               </div>
-                            </li>
+                            </div>
                           ))}
-                        </ul>
+                        </div>
                       )}
                     </div>
                   </div>
                 )
               ) : (
                 /* --- KLIENS TARTALOM --- */
-                <div className="space-y-6">
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden relative transition-all duration-500">
-                    <div className={`h-2 w-full ${hasLoggedToday ? "bg-gradient-to-r from-emerald-400 to-teal-500" : "bg-gradient-to-r from-orange-400 to-pink-500"}`}></div>
-                    <div className="p-8 md:p-10 flex flex-col md:flex-row items-center justify-between text-center md:text-left">
-                      <div className="mb-6 md:mb-0">
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2">{hasLoggedToday ? "Szuper, ma már naplóztál!" : "Ma még nem naplóztál! 📝"}</h3>
-                        <p className="text-gray-600 max-w-md">{hasLoggedToday ? "Mára végeztél is! Az adataidat sikeresen továbbítottuk a szakértődnek. Pihenj, és térj vissza holnap!" : "Az edződ várja az adataidat. Szánj rá 1 percet, és rögzítsd az alvásodat, stressz-szintedet és a vízfogyasztásodat!"}</p>
+                <div className="space-y-8 animate-fade-in-up">
+                  
+                  {/* Dinamikus Naplózó Banner */}
+                  <div className={`relative overflow-hidden rounded-[2.5rem] p-8 md:p-12 shadow-lg flex flex-col md:flex-row items-center justify-between text-white transition-all duration-500 ${hasLoggedToday ? "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20" : "bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 shadow-purple-500/20"}`}>
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 w-40 h-40 bg-black/10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
+                    
+                    <div className="relative z-10 text-center md:text-left mb-8 md:mb-0 max-w-xl">
+                      <div className="inline-block px-3 py-1.5 rounded-lg bg-white/20 backdrop-blur-md border border-white/20 text-xs font-extrabold uppercase tracking-widest mb-4">
+                        {hasLoggedToday ? "Küldetés Teljesítve" : "Napi Feladat"}
                       </div>
-                      {!hasLoggedToday && (
-                        <button onClick={() => setIsLogModalOpen(true)} className="px-8 py-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition shadow-lg shrink-0 w-full md:w-auto">
-                          Napi Napló Hozzáadása
-                        </button>
-                      )}
+                      <h3 className="text-3xl md:text-4xl font-black mb-3 tracking-tight">
+                        {hasLoggedToday ? "Szuper, mára megvagyunk!" : "Ma még nem naplóztál!"}
+                      </h3>
+                      <p className="text-white/80 text-lg font-medium leading-relaxed">
+                        {hasLoggedToday 
+                          ? "Az adataidat sikeresen továbbítottuk a szakértődnek. Pihenj, és térj vissza holnap újult erővel!" 
+                          : "Az edződ várja az adataidat. Szánj rá 1 percet, és rögzítsd az alvásodat, stressz-szintedet és a vízfogyasztásodat!"}
+                      </p>
                     </div>
+                    
+                    {!hasLoggedToday && (
+                      <button onClick={() => setIsLogModalOpen(true)} className="relative z-10 px-8 py-4 bg-white text-indigo-700 font-black rounded-2xl hover:bg-slate-50 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] hover:-translate-y-1 shrink-0 w-full md:w-auto text-lg">
+                        Adatok Rögzítése
+                      </button>
+                    )}
                   </div>
 
-                  {/* KLIENS LÁTJA A JELENLEGI HETI TERVÉT DÁTUMOKKAL */}
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-xl font-bold text-gray-800">Aktuális heti edzésterved</h3>
-                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider hidden sm:block">Kattints a napra a részletekért</span>
+                  {/* KLIENS HETI TERV (MODERN KÁRTYÁK) */}
+                  <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200/60 p-8">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-2">
+                      <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">Heti Fókusz</h3>
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">Kattints a napra a részletekért</span>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
                       {daysOfWeek.map((day, idx) => {
                         const hasPlan = !!clientWeeklyPlan[day];
                         return (
@@ -1971,14 +1999,15 @@ const handleUpdateProfile = async () => {
                               setPlanDay(day);
                               setIsClientPlanModalOpen(true); 
                             }}
-                            className={`p-4 rounded-xl border cursor-pointer hover:-translate-y-1 hover:shadow-md transition-all duration-200 ${hasPlan ? "border-blue-200 bg-blue-50/60" : "border-gray-100 bg-gray-50/50"}`}
+                            className={`p-5 rounded-2xl border cursor-pointer hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group ${hasPlan ? "border-indigo-200 bg-indigo-50/40 hover:shadow-lg hover:shadow-indigo-500/10" : "border-slate-100 bg-slate-50/50 hover:border-slate-300 hover:shadow-md"}`}
                           >
-                            <span className={`text-xs font-extrabold uppercase block mb-1 ${hasPlan ? "text-blue-600" : "text-gray-400"}`}>
+                            {hasPlan && <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>}
+                            <span className={`text-[11px] font-black uppercase block mb-1 tracking-widest ${hasPlan ? "text-indigo-600" : "text-slate-400"}`}>
                               {day}
                             </span>
-                            <span className="text-xs text-gray-500 font-medium block mb-2">{getDayDateLabel(currentRealMonday, idx)}</span>
-                            <div className="text-sm text-gray-800 font-medium whitespace-pre-wrap line-clamp-3">
-                              {clientWeeklyPlan[day] || "Pihenő"}
+                            <span className="text-xs text-slate-500 font-bold block mb-3">{getDayDateLabel(currentRealMonday, idx)}</span>
+                            <div className="text-sm text-slate-800 font-medium whitespace-pre-wrap line-clamp-3">
+                              {clientWeeklyPlan[day] || <span className="text-slate-400 italic font-normal">Pihenő</span>}
                             </div>
                           </div>
                         );
@@ -1986,28 +2015,42 @@ const handleUpdateProfile = async () => {
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                      <h3 className="text-xl font-bold text-gray-800">Korábbi naplózásaid</h3>
-                      {clientLogs.length > 0 && <span className="text-sm font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">{clientLogs.length} Napló rögzítve 🔥</span>}
+                  {/* KORÁBBI NAPLÓZÁSOK */}
+                  <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200/60 overflow-hidden">
+                    <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                      <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Korábbi naplózásaid</h3>
+                      {clientLogs.length > 0 && <span className="text-xs font-extrabold text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-sm">{clientLogs.length} Napló rögzítve</span>}
                     </div>
                     {clientLogs.length === 0 ? (
-                      <div className="p-10 text-center text-gray-500"><div className="text-4xl mb-3 opacity-50"></div><p>Még nem rögzítettél adatot.</p></div>
+                      <div className="p-12 text-center text-slate-500 bg-slate-50/30">
+                        <div className="text-5xl mb-4 opacity-30">⏳</div>
+                        <p className="font-bold text-lg">Még nem rögzítettél adatot.</p>
+                      </div>
                     ) : (
-                      <ul className="divide-y divide-gray-100">
+                      <ul className="divide-y divide-slate-100">
                         {clientLogs.map((log) => {
                           const isGood = log.mood.includes("Szuper") || log.mood.includes("Jó");
                           const isBad = log.mood.includes("Rossz");
-                          const badgeColor = isGood ? "text-emerald-700 bg-emerald-50" : (isBad ? "text-red-700 bg-red-50" : "text-yellow-700 bg-yellow-50");
+                          const badgeColor = isGood ? "text-emerald-700 bg-emerald-50 border-emerald-200" : (isBad ? "text-red-700 bg-red-50 border-red-200" : "text-amber-700 bg-amber-50 border-amber-200");
                           return (
-                            <li key={log.id} onClick={() => setSelectedLog(log)} className="p-6 sm:px-8 hover:bg-gray-50 transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 cursor-pointer">
+                            <li key={log.id} onClick={() => setSelectedLog(log)} className="p-6 sm:px-8 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 cursor-pointer group">
                               <div>
-                                <p className="font-bold text-gray-900 text-lg mb-1">{formatDateLabel(log.date)}</p>
-                                <p className="text-gray-500 text-sm">Alvás: {log.sleep_hours} óra • Víz: {log.water_liters} L • Edzés: {log.workout_minutes} perc</p>
+                                <p className="font-extrabold text-slate-900 text-lg mb-1 tracking-tight group-hover:text-indigo-600 transition-colors">{formatDateLabel(log.date)}</p>
+                                <div className="flex items-center gap-3 text-sm font-medium text-slate-500">
+                                  <span className="flex items-center gap-1"><span className="text-indigo-400">🌙</span> {log.sleep_hours}h</span>
+                                  <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                  <span className="flex items-center gap-1"><span className="text-blue-400">💧</span> {log.water_liters}L</span>
+                                  <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                  <span className="flex items-center gap-1"><span className="text-orange-400">⚡</span> {log.workout_minutes}p</span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                                <span className={`px-4 py-2 rounded-lg text-sm font-bold ${badgeColor}`}>{log.mood}</span>
-                                <span className="text-gray-400 font-bold hover:text-emerald-600 transition">Részletek →</span>
+                              <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end mt-2 sm:mt-0">
+                                <span className={`px-3 py-1.5 rounded-lg text-xs font-extrabold border uppercase tracking-widest ${badgeColor}`}>
+                                  {log.mood}
+                                </span>
+                                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all shadow-sm">
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"></path></svg>
+                                </div>
                               </div>
                             </li>
                           );
