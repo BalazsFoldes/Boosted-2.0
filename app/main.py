@@ -408,7 +408,10 @@ def create_invite(req: InviteRequest, db: Session = Depends(get_db)):
     new_invite = Invite(coach_id=req.coach_id, client_email=req.email, token=token, expires_at=expires)
     db.add(new_invite)
     db.commit()
-    return {"message": "Link sikeresen generálva!", "link": f"http://localhost:3000/register-client?token={token}"}
+    
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    
+    return {"message": "Link sikeresen generálva!", "link": f"{frontend_url}/register-client?token={token}"}
 
 @app.get("/api/invite/{token}")
 def check_invite(token: str, db: Session = Depends(get_db)):
