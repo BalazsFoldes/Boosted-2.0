@@ -90,7 +90,7 @@ function ClientRegistrationForm() {
 
     const checkToken = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/invite/${token}`);
+        const res = await fetch(`https://boosted-backend-bvvv.onrender.com/api/invite/${token}`);
         if (res.ok) {
           const data = await res.json();
           setCoachName(data.coach_name);
@@ -118,7 +118,7 @@ function ClientRegistrationForm() {
     e.preventDefault();
     setIsActionLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/api/register-client", {
+      const res = await fetch("https://boosted-backend-bvvv.onrender.com/api/register-client", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, email, password, first_name: firstName, last_name: lastName }),
       });
