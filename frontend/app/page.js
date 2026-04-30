@@ -2398,7 +2398,7 @@ const handleUpdateProfile = async () => {
                               <input type="text" placeholder="Pl.: Budapest, vagy Online" className={inputStyle} value={profileData.city} onChange={(e) => setProfileData({...profileData, city: e.target.value})} />
                             ) : (
                               <p className="text-sm font-bold text-gray-800 bg-gray-50/50 p-3 rounded-xl border border-gray-100 inline-flex items-center min-h-[46px] w-full">
-                                <span className="mr-2">📍</span> {profileData.city || "Nincs megadva város"}
+                                <span className="mr-2"></span> {profileData.city || "Nincs megadva város"}
                               </p>
                             )}
                           </div>
