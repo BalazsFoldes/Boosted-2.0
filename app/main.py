@@ -17,10 +17,18 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 load_dotenv()
 
 # --- 1. Adatbázis Beállítás (SQLite) ---
-SQLALCHEMY_DATABASE_URL = "sqlite:///./boosted.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./boosted.db")
+
+# Ha SQLite-ot használunk, kell a check_same_thread paraméter
+if "sqlite" in SQLALCHEMY_DATABASE_URL:
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    # Ha a felhőben vagyunk (PostgreSQL), ez a paraméter nem kell
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
 
 # --- 1.5 Gemini AI ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
