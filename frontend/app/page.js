@@ -2052,7 +2052,6 @@ const handleUpdateProfile = async () => {
                     </div>
                     {clientLogs.length === 0 ? (
                       <div className="p-12 text-center text-slate-500 bg-slate-50/30">
-                        <div className="text-5xl mb-4 opacity-30">⏳</div>
                         <p className="font-bold text-lg">Még nem rögzítettél adatot.</p>
                       </div>
                     ) : (
