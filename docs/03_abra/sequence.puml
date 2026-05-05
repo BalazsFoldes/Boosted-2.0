@@ -1,0 +1,18 @@
+@startuml
+actor "Felhasználó" as User
+boundary "React Frontend" as FE
+control "FastAPI Backend" as API
+control "Bcrypt / JWT Modul" as AUTH
+database "SQLite (SQLAlchemy)" as DB
+
+User -> FE: Email + jelszó megadása
+FE -> API: POST /api/login (JSON)
+API -> DB: User lekérdezése (email alapján)
+DB --> API: User rekord (password_hash)
+API -> AUTH: verify_password(plain, hashed)
+AUTH --> API: Sikeres hitelesítés (True)
+API -> AUTH: create_access_token(sub, role)
+AUTH --> API: JWT Token
+API --> FE: 200 OK + Token + Profiladatok (szerepkör)
+FE --> User: Irányítás a megfelelő Dashboardra
+@enduml

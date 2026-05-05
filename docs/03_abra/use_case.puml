@@ -1,0 +1,37 @@
+@startuml
+left to right direction
+actor Kliens
+actor Edző
+actor "Google Gemini AI" as AI
+
+rectangle "Boosted Platform" {
+  usecase "Regisztráció / Belépés" as UC1
+  usecase "Profil paraméterek kezelése" as UC2
+  usecase "Napi napló (Daily Log) rögzítése" as UC3
+  usecase "Kliensek meghívása (Link)" as UC4
+  usecase "Heti edzésterv kezelése" as UC5
+  usecase "Motivációs Boost küldése" as UC6
+  usecase "Edző értékelése (Review)" as UC7
+  usecase "Prediktív AI Dashboard elemzés" as UC8
+  usecase "Szerepkör-specifikus AI Chat" as UC9
+}
+
+Kliens --> UC1
+Kliens --> UC2
+Kliens --> UC3
+Kliens --> UC5
+Kliens --> UC7
+Kliens --> UC8
+Kliens --> UC9
+
+Edző --> UC1
+Edző --> UC2
+Edző --> UC4
+Edző --> UC5
+Edző --> UC6
+Edző --> UC8
+Edző --> UC9
+
+AI --> UC8
+AI --> UC9
+@enduml

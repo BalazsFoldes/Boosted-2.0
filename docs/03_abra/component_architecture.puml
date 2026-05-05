@@ -1,0 +1,26 @@
+@startuml
+skinparam componentStyle rectangle
+
+package "Web kliens (React SPA)" {
+  [UI komponensek]
+  [Állapotkezelés (State/Hooks)]
+}
+
+package "Backend (FastAPI)" {
+  [REST API (Végpontok)]
+  [JWT Auth Guard]
+  [Alkalmazáslogika]
+  [SQLAlchemy ORM]
+}
+
+database "SQLite Adatbázis" as DB
+cloud "Google Gemini 3.1 (MI)" as AI
+
+[UI komponensek] --> [REST API (Végpontok)] : HTTP / JSON (CORS)
+[REST API (Végpontok)] --> [JWT Auth Guard] : Token ellenőrzés
+[REST API (Végpontok)] --> [Alkalmazáslogika]
+[Alkalmazáslogika] --> [SQLAlchemy ORM]
+[SQLAlchemy ORM] --> DB : SQL olvasás/írás
+[Alkalmazáslogika] --> AI : Kontextus + Prompt / JSON válasz
+
+@enduml

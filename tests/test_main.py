@@ -1,7 +1,32 @@
+import sys
+import os
 from fastapi.testclient import TestClient
-from main import app  # Importáljuk a te FastAPI alkalmazásodat
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
-# Létrehozunk egy virtuális klienst, ami képes kéréseket küldeni az appodnak
+current_dir = os.path.dirname(os.path.abspath(__file__))
+app_path = os.path.join(current_dir, "..", "app")
+sys.path.insert(0, app_path)
+
+from main import app, get_db, Base
+
+db_path = os.path.join(current_dir, "test_boosted.db")
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{db_path}"
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def override_get_db():
+    try:
+        db = TestingSessionLocal()
+        yield db
+    finally:
+        db.close()
+
+app.dependency_overrides[get_db] = override_get_db
+
+Base.metadata.create_all(bind=engine)
+
 client = TestClient(app)
 
 def test_get_nonexistent_route():
@@ -109,3 +134,15 @@ def test_ai_chat_validation_error():
     
     # A Pydantic azonnal megfogja, és 422 Unprocessable Entity hibát dob
     assert response.status_code == 422
+
+if __name__ == "__main__":
+    test_get_nonexistent_route()
+    test_register_missing_fields()
+    test_login_wrong_credentials()
+    test_protected_profile_route_without_token()
+    test_invalid_invite_token()
+    test_create_daily_log_invalid_date()
+    test_update_plan_not_monday()
+    test_send_boost_nonexistent_client()
+    test_disconnect_nonexistent_relation()
+    test_ai_chat_validation_error()

@@ -85,4 +85,4 @@ Ez automatikusan elindítja a backendet (http://localhost:8000) és a frontendet
 A backend API végpontok és az üzleti logika automatizált egységtesztjeinek (Unit tests) futtatásához használd a következő parancsot a backend mappájában:
 
 Bash
-python -m pytest test_main.py -v
+python -m pytest tests/test_main.py -v
