@@ -240,7 +240,7 @@ def get_monday(d: datetime.date) -> datetime.date:
     return d - timedelta(days=d.weekday())
 
 # --- JWT Authentikáció beállítása ---
-SECRET_KEY = "boosted_super_secret_jwt_key_for_thesis_defense"
+SECRET_KEY = os.getenv("SECRET_KEY", "local_developer_secret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 napig érvényes token
 
