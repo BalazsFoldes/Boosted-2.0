@@ -1,6 +1,6 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 import { useState, useEffect } from "react";
-// ÚJ: ComposedChart és Bar importálása az oszlopdiagramhoz
 import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { jsPDF } from "jspdf";
 
@@ -358,18 +358,18 @@ useEffect(() => {
 
       try {
         if (userRole === "COACH" && coachId) {
-          const res = await fetch(`https://boosted-backend-bvvv.onrender.com/api/coach/${coachId}/clients`);
+          const res = await authFetch(`https://boosted-backend-bvvv.onrender.com/api/coach/${coachId}/clients`);
           if (res.ok) {
             const data = await res.json();
             setClients(data);
           }
-          const statsRes = await fetch(`https://boosted-backend-bvvv.onrender.com/api/coach/${coachId}/dashboard-stats`);
+          const statsRes = await authFetch(`https://boosted-backend-bvvv.onrender.com/api/coach/${coachId}/dashboard-stats`);
           if (statsRes.ok) {
             const statsData = await statsRes.json();
             setDashboardStats(statsData);
           }
         } else if (userRole === "CLIENT") {
-          const resLogs = await fetch(`https://boosted-backend-bvvv.onrender.com/api/client/${userId}/logs`);
+          const resLogs = await authFetch(`https://boosted-backend-bvvv.onrender.com/api/client/${userId}/logs`);
           if (resLogs.ok) {
             const logs = await resLogs.json();
             setClientLogs(logs);
@@ -378,7 +378,7 @@ useEffect(() => {
             setCurrentStreak(calculateStreak(logs)); 
           }
           
-          const resPlans = await fetch(`https://boosted-backend-bvvv.onrender.com/api/client/${userId}/plans`);
+          const resPlans = await authFetch(`https://boosted-backend-bvvv.onrender.com/api/client/${userId}/plans`);
           if (resPlans.ok) {
             const plans = await resPlans.json();
             setClientAllPlans(plans);
@@ -416,9 +416,8 @@ useEffect(() => {
         }
 
         try {
-          const res = await fetch("https://boosted-backend-bvvv.onrender.com/api/generate-ai-dashboard", {
+          const res = await authFetch("https://boosted-backend-bvvv.onrender.com/api/generate-ai-dashboard", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
               user_type: userRole, 
               context_data: contextData 
@@ -470,16 +469,8 @@ const handleUpdateProfile = async () => {
         profile_picture_url: profileData.profilePictureUrl
       };
 
-      // --- ÚJ: KIVESSZÜK A TOKENT A LOCALSTORAGE-BŐL ---
-      const token = localStorage.getItem("boosted_token");
-
-      const res = await fetch(`https://boosted-backend-bvvv.onrender.com/api/user/${userId}/profile`, {
+      const res = await authFetch(`https://boosted-backend-bvvv.onrender.com/api/user/${userId}/profile`, {
         method: "PUT",
-        headers: { 
-          "Content-Type": "application/json",
-          // --- ÚJ: FELMUTATJUK AZ ŐRNEK A TOKENT ---
-          "Authorization": `Bearer ${token}` 
-        },
         body: JSON.stringify(payload),
       });
 
@@ -515,12 +506,12 @@ const handleUpdateProfile = async () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
     try {
-      const resLogs = await fetch(`https://boosted-backend-bvvv.onrender.com/api/client/${client.id}/logs`);
+      const resLogs = await authFetch(`https://boosted-backend-bvvv.onrender.com/api/client/${client.id}/logs`);
       if (resLogs.ok) {
         const logs = await resLogs.json();
         setSelectedClientLogs(logs.reverse());
       }
-      const resPlans = await fetch(`https://boosted-backend-bvvv.onrender.com/api/client/${client.id}/plans`);
+      const resPlans = await authFetch(`https://boosted-backend-bvvv.onrender.com/api/client/${client.id}/plans`);
       if (resPlans.ok) {
         const plans = await resPlans.json();
         setClientAllPlans(plans);
@@ -547,8 +538,8 @@ const handleUpdateProfile = async () => {
       if (steps) payload.steps = parseInt(steps);
       if (dailyWeight) payload.weight = parseFloat(dailyWeight.replace(',', '.')); 
 
-      const res = await fetch("https://boosted-backend-bvvv.onrender.com/api/client/log", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      const res = await authFetch("https://boosted-backend-bvvv.onrender.com/api/client/log", {
+        method: "POST", body: JSON.stringify(payload),
       });
 
       if (res.ok) {
@@ -601,8 +592,8 @@ const handleUpdateProfile = async () => {
     setClientAllPlans(newPlans);
     
     try {
-      const res = await fetch(`https://boosted-backend-bvvv.onrender.com/api/client/${selectedClient.id}/plan`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
+      const res = await authFetch(`https://boosted-backend-bvvv.onrender.com/api/client/${selectedClient.id}/plan`, {
+        method: "PUT",
         body: JSON.stringify({ week_start_date: selectedWeek, plan_data: planDataStr }),
       });
       if (res.ok) {
@@ -618,8 +609,8 @@ const handleUpdateProfile = async () => {
   const handleSaveNotes = async () => {
     setIsActionLoading(true);
     try {
-      const res = await fetch(`https://boosted-backend-bvvv.onrender.com/api/client/${selectedClient.id}/notes`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
+      const res = await authFetch(`https://boosted-backend-bvvv.onrender.com/api/client/${selectedClient.id}/notes`, {
+        method: "PUT",
         body: JSON.stringify({ coach_notes: coachNotes }),
       });
       if (res.ok) {
@@ -642,9 +633,8 @@ const handleUpdateProfile = async () => {
       const targetClientId = checkIsCoach ? selectedClient.id : userId;
       const targetCoachId = checkIsCoach ? coachId : (assignedCoachData?.id || coachId);
 
-      const res = await fetch("https://boosted-backend-bvvv.onrender.com/api/disconnect", {
+      const res = await authFetch("https://boosted-backend-bvvv.onrender.com/api/disconnect", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ client_id: targetClientId, coach_id: targetCoachId })
       });
 
@@ -673,9 +663,8 @@ const handleUpdateProfile = async () => {
     setIsActionLoading(true);
     try {
       const targetCoachId = assignedCoachData?.id || coachId;
-      const res = await fetch(`https://boosted-backend-bvvv.onrender.com/api/coach/${targetCoachId}/review`, {
+      const res = await authFetch(`https://boosted-backend-bvvv.onrender.com/api/coach/${targetCoachId}/review`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ client_id: userId, rating: reviewRating, review_text: reviewText })
       });
       
@@ -704,7 +693,7 @@ const handleUpdateProfile = async () => {
     setIsActionLoading(true);
     try {
       // VALÓDI FETCH HÍVÁS A BACKENDRE
-      const res = await fetch(`https://boosted-backend-bvvv.onrender.com/api/client/${selectedClient.id}/boost`, {
+      const res = await authFetch(`https://boosted-backend-bvvv.onrender.com/api/client/${selectedClient.id}/boost`, {
         method: "POST",
       });
 
@@ -737,7 +726,7 @@ const handleUpdateProfile = async () => {
   const handleAcknowledgeBoost = async () => {
     setHasUnseenBoost(false); // Azonnal eltüntetjük a modált
     try {
-      await fetch(`https://boosted-backend-bvvv.onrender.com/api/client/${userId}/clear-boost`, { method: "POST" });
+      await authFetch(`https://boosted-backend-bvvv.onrender.com/api/client/${userId}/clear-boost`, { method: "POST" });
     } catch (error) {
       console.error("Hiba a nyugtázáskor:", error);
     }
@@ -781,7 +770,6 @@ const handleUpdateProfile = async () => {
         rawText = rawText.replace(timeMatch[0], "");
       }
 
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPlanStartTime(sTime);
       setPlanEndTime(eTime);
       
@@ -801,9 +789,8 @@ const handleUpdateProfile = async () => {
         const contextData = `Kliens: ${selectedClient.last_name} ${selectedClient.first_name}. Cél: ${selectedClient.primary_goal || "Nem megadott"}. Étrend és allergiák: ${selectedClient.diet_allergies || "Nincs megadva"}. Jelenlegi súly: ${selectedClient.current_weight || "?"}kg, Célsúly: ${selectedClient.goal_weight || "?"}kg. Edzői jegyzetek róla: ${coachNotes || "Nincs jegyzet"}. Utolsó heti naplói: ${logText || "Nincs rögzített naplója"}`;
 
         try {
-          const res = await fetch("https://boosted-backend-bvvv.onrender.com/api/generate-client-analysis", {
+          const res = await authFetch("https://boosted-backend-bvvv.onrender.com/api/generate-client-analysis", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ context_data: contextData })
           });
           
@@ -927,8 +914,8 @@ const handleUpdateProfile = async () => {
     try {
       const payload = { coach_id: coachId };
       if (sendEmail) payload.email = clientEmail;
-      const res = await fetch("https://boosted-backend-bvvv.onrender.com/api/invite", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      const res = await authFetch("https://boosted-backend-bvvv.onrender.com/api/invite", {
+        method: "POST", body: JSON.stringify(payload),
       });
       if (res.ok) {
         const data = await res.json();
@@ -945,6 +932,19 @@ const handleUpdateProfile = async () => {
     } finally {
       setIsActionLoading(false);
     }
+  };
+
+
+  const authFetch = (url, options = {}) => {
+    const token = localStorage.getItem("boosted_token");
+    return fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      },
+    });
   };
 
   const handleLogout = () => {
@@ -985,9 +985,8 @@ const handleUpdateProfile = async () => {
     const finalPrompt = `Itt vannak a rendszer aktuális adatai: [${contextData}]. \n\nKérés: ${promptInstruction}. \nA választ szépen formázva, HTML vagy Markdown nélkül, jól olvasható bekezdésekkel és felsorolásokkal add vissza. Ne írj bevezetőt, rögtön a lényeggel kezdd.`;
 
     try {
-      const res = await fetch("https://boosted-backend-bvvv.onrender.com/api/chat", {
+      const res = await authFetch("https://boosted-backend-bvvv.onrender.com/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [{ role: "user", content: finalPrompt }],
           user_type: userRole
@@ -1933,7 +1932,7 @@ const handleUpdateProfile = async () => {
                       
                       {filteredClients.length === 0 ? (
                         <div className="p-16 text-center text-slate-500 bg-white rounded-[2rem] border border-dashed border-slate-300 shadow-sm">
-                          <p className="text-lg font-bold">Nincs találat a keresésre: <span className="text-slate-800">"{searchQuery}"</span></p>
+                          <p className="text-lg font-bold">Nincs találat a keresésre: <span className="text-slate-800">&quot;{searchQuery}&quot;</span></p>
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

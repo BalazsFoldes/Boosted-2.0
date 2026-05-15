@@ -136,9 +136,14 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+origins = [
+    "http://localhost:3000",
+    "https://boosted-app.vercel.app"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -320,7 +325,6 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
             coach = db.query(User).filter(User.id == db_user.coach_id).first()
             if coach:
                 coach_name = f"{coach.last_name} {coach.first_name}"
-                # ÚJ: Kinyerjük az edző publikus adatait
                 coach_data = {
                     "id": coach.id,
                     "city": coach.city,
@@ -367,15 +371,14 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "review_count": db_user.review_count
     }
 
-# Profil frissítése (JAVÍTVA)
+# Profil frissítése (VÉDETT)
 @app.put("/api/user/{user_id}/profile")
 def update_profile(
     user_id: int, 
     profile: ProfileUpdate, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)  # <--- EZ AZ ŐR! Itt kérjük el a JWT tokent!
+    current_user: User = Depends(get_current_user)
 ):
-    # Biztonsági ellenőrzés: Csak a saját profilját módosíthatja!
     if current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Nincs jogosultságod ezt a profilt szerkeszteni!")
         
@@ -391,7 +394,6 @@ def update_profile(
     user.primary_goal = profile.primary_goal
     user.diet_allergies = profile.diet_allergies
     
-    # ÚJ MEZŐK MENTÉSE:
     if profile.city is not None: user.city = profile.city
     if profile.bio is not None: user.bio = profile.bio
     if profile.experience_years is not None: user.experience_years = profile.experience_years
@@ -402,15 +404,17 @@ def update_profile(
     return {"message": "Profil sikeresen frissítve!"}
 
 @app.post("/api/invite")
-def create_invite(req: InviteRequest, db: Session = Depends(get_db)):
+def create_invite(req: InviteRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.id != req.coach_id or current_user.role != "COACH":
+        raise HTTPException(status_code=403, detail="Csak az edző hozhat létre meghívót!")
+
     token = secrets.token_urlsafe(32)
     expires = datetime.now() + timedelta(hours=24)
     new_invite = Invite(coach_id=req.coach_id, client_email=req.email, token=token, expires_at=expires)
     db.add(new_invite)
     db.commit()
     
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    
+    frontend_url = os.getenv("FRONTEND_URL", "https://boosted-app.vercel.app")
     return {"message": "Link sikeresen generálva!", "link": f"{frontend_url}/register-client?token={token}"}
 
 @app.get("/api/invite/{token}")
@@ -442,8 +446,12 @@ def register_client(req: ClientRegister, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Sikeres kliens regisztráció!"}
 
+# Klienslista lekérése (VÉDETT)
 @app.get("/api/coach/{coach_id}/clients")
-def get_coach_clients(coach_id: int, db: Session = Depends(get_db)):
+def get_coach_clients(coach_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.id != coach_id or current_user.role != "COACH":
+        raise HTTPException(status_code=403, detail="Nincs jogosultságod ezt a listát lekérni!")
+
     clients = db.query(User).filter(User.role == "CLIENT", User.coach_id == coach_id).all()
     
     result = []
@@ -473,8 +481,12 @@ def get_coach_clients(coach_id: int, db: Session = Depends(get_db)):
         
     return result
 
+# Napi napló mentése (VÉDETT)
 @app.post("/api/client/log")
-def create_daily_log(log: DailyLogCreate, db: Session = Depends(get_db)):
+def create_daily_log(log: DailyLogCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.id != log.client_id:
+        raise HTTPException(status_code=403, detail="Csak saját magadnak naplózhatsz!")
+
     try:
         log_date = datetime.strptime(log.date, "%Y-%m-%d").date()
     except ValueError:
@@ -494,7 +506,6 @@ def create_daily_log(log: DailyLogCreate, db: Session = Depends(get_db)):
     )
     db.add(new_log)
     
-    # Súly automatikus frissítése a profilon, ha naplózta
     if log.weight:
         client = db.query(User).filter(User.id == log.client_id).first()
         if client:
@@ -503,22 +514,36 @@ def create_daily_log(log: DailyLogCreate, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Napi napló sikeresen elmentve!"}
 
+# Naplók lekérése (VÉDETT - Kliens saját maga vagy az edzője láthatja)
 @app.get("/api/client/{client_id}/logs")
-def get_client_logs(client_id: int, db: Session = Depends(get_db)):
+def get_client_logs(client_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    client = db.query(User).filter(User.id == client_id).first()
+    if not client or (current_user.id != client.id and current_user.id != client.coach_id):
+        raise HTTPException(status_code=403, detail="Nincs jogosultságod ezekhez az adatokhoz!")
+
     logs = db.query(DailyLog).filter(DailyLog.client_id == client_id).order_by(DailyLog.date.desc()).all()
     return [
         {"id": l.id, "date": l.date.strftime("%Y-%m-%d"), "sleep_hours": l.sleep_hours, "stress_level": l.stress_level, "water_liters": l.water_liters, "workout_minutes": l.workout_minutes, "mood": l.mood, "notes": l.notes, "workout_intensity": l.workout_intensity,"steps": l.steps,"weight": l.weight}
         for l in logs
     ]
 
+# Tervek lekérése (VÉDETT)
 @app.get("/api/client/{client_id}/plans")
-def get_client_plans(client_id: int, db: Session = Depends(get_db)):
+def get_client_plans(client_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    client = db.query(User).filter(User.id == client_id).first()
+    if not client or (current_user.id != client.id and current_user.id != client.coach_id):
+        raise HTTPException(status_code=403, detail="Nincs jogosultságod ezekhez az adatokhoz!")
+
     plans = db.query(WeeklyPlan).filter(WeeklyPlan.client_id == client_id).order_by(WeeklyPlan.week_start_date.desc()).all()
-    # ÚJ: A nehézségi szintet is visszaadjuk a kliensnek
     return [{"week_start": p.week_start_date.strftime("%Y-%m-%d"), "plan_data": p.plan_data, "difficulty_level": p.difficulty_level} for p in plans]
 
+# Terv frissítése (VÉDETT - Csak a hozzárendelt edző csinálhatja)
 @app.put("/api/client/{client_id}/plan")
-def update_client_plan(client_id: int, plan: PlanUpdate, db: Session = Depends(get_db)):
+def update_client_plan(client_id: int, plan: PlanUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    client = db.query(User).filter(User.id == client_id).first()
+    if not client or client.coach_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Csak a klienshez rendelt edző írhat ki edzéstervet!")
+
     try:
         week_start = datetime.strptime(plan.week_start_date, "%Y-%m-%d").date()
         if week_start.weekday() != 0:
@@ -530,7 +555,7 @@ def update_client_plan(client_id: int, plan: PlanUpdate, db: Session = Depends(g
     
     if existing_plan:
         existing_plan.plan_data = plan.plan_data
-        existing_plan.difficulty_level = plan.difficulty_level # JAVÍTÁS
+        existing_plan.difficulty_level = plan.difficulty_level 
     else:
         new_plan = WeeklyPlan(client_id=client_id, week_start_date=week_start, plan_data=plan.plan_data, difficulty_level=plan.difficulty_level)
         db.add(new_plan)
@@ -538,28 +563,35 @@ def update_client_plan(client_id: int, plan: PlanUpdate, db: Session = Depends(g
     db.commit()
     return {"message": "Terv sikeresen frissítve!"}
 
+# Jegyzetek mentése (VÉDETT)
 @app.put("/api/client/{client_id}/notes")
-def update_client_notes(client_id: int, note_data: NoteUpdate, db: Session = Depends(get_db)):
+def update_client_notes(client_id: int, note_data: NoteUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     client = db.query(User).filter(User.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Kliens nem található")
+    if not client or client.coach_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Nincs jogosultságod jegyzetet menteni!")
+        
     client.coach_notes = note_data.coach_notes
     db.commit()
     return {"message": "Jegyzet sikeresen mentve!"}
 
+# Boost küldése (VÉDETT)
 @app.post("/api/client/{client_id}/boost")
-def send_boost(client_id: int, db: Session = Depends(get_db)):
+def send_boost(client_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     client = db.query(User).filter(User.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Kliens nem található")
+    if not client or client.coach_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Nincs jogosultságod boostot küldeni ennek a kliensnek!")
     
     client.total_boosts += 1
     client.has_unseen_boost = True
     db.commit()
     return {"message": "Boost elküldve!", "total_boosts": client.total_boosts}
 
+# Boost törlése (VÉDETT - Csak a sajátját törölheti)
 @app.post("/api/client/{client_id}/clear-boost")
-def clear_boost(client_id: int, db: Session = Depends(get_db)):
+def clear_boost(client_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.id != client_id:
+        raise HTTPException(status_code=403, detail="Nincs jogosultságod!")
+        
     client = db.query(User).filter(User.id == client_id).first()
     if client:
         client.has_unseen_boost = False
@@ -576,7 +608,6 @@ def calculate_streak(logs):
     today = datetime.now().date()
     yesterday = today - timedelta(days=1)
     
-    # Ha az utolsó naplózás régebbi, mint tegnap, megszakadt a széria
     if unique_dates[0] < yesterday:
         return 0
         
@@ -589,8 +620,12 @@ def calculate_streak(logs):
             break
     return streak
 
+# Dashboard Statisztikák (VÉDETT)
 @app.get("/api/coach/{coach_id}/dashboard-stats")
-def get_coach_dashboard_stats(coach_id: int, db: Session = Depends(get_db)):
+def get_coach_dashboard_stats(coach_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.id != coach_id or current_user.role != "COACH":
+        raise HTTPException(status_code=403, detail="Nincs jogosultságod ehhez a vezérlőpulthoz!")
+
     clients = db.query(User).filter(User.role == "CLIENT", User.coach_id == coach_id).all()
     client_ids = [c.id for c in clients]
     total_clients = len(clients)
@@ -605,14 +640,11 @@ def get_coach_dashboard_stats(coach_id: int, db: Session = Depends(get_db)):
     today = datetime.now().date()
     seven_days_ago = today - timedelta(days=7)
     
-    # Mai naplózások száma
     today_logs = db.query(DailyLog).filter(DailyLog.client_id.in_(client_ids), DailyLog.date == today).all()
     today_logs_count = len(set(l.client_id for l in today_logs))
 
-    # Utolsó 7 nap naplói
     recent_logs = db.query(DailyLog).filter(DailyLog.client_id.in_(client_ids), DailyLog.date >= seven_days_ago).all()
     
-    # Átlagos stressz
     avg_stress = 0.0
     if recent_logs:
         avg_stress = round(sum(l.stress_level for l in recent_logs) / len(recent_logs), 1)
@@ -622,7 +654,6 @@ def get_coach_dashboard_stats(coach_id: int, db: Session = Depends(get_db)):
     max_streak = 0
 
     for c in clients:
-        # Kliens összes naplója a streak számoláshoz
         c_all_logs = db.query(DailyLog).filter(DailyLog.client_id == c.id).order_by(DailyLog.date.desc()).all()
         current_streak = calculate_streak(c_all_logs)
         
@@ -630,10 +661,8 @@ def get_coach_dashboard_stats(coach_id: int, db: Session = Depends(get_db)):
             max_streak = current_streak
             top_client_name = f"{c.last_name} {c.first_name}"
 
-        # Riasztások logikája
         c_recent_logs = [l for l in recent_logs if l.client_id == c.id]
         
-        # 1. Több mint 3 napja nem naplózott
         if not c_recent_logs or (today - c_recent_logs[0].date).days >= 3:
             alerts.append({
                 "type": "missing",
@@ -641,7 +670,6 @@ def get_coach_dashboard_stats(coach_id: int, db: Session = Depends(get_db)):
                 "message": "Több mint 3 napja nem naplózott. Érdemes ráírni, hogy minden rendben van-e, elvesztette-e a motivációt."
             })
         
-        # 2. Kritikus stressz (8 vagy felette)
         if c_recent_logs and c_recent_logs[0].stress_level >= 8:
             alerts.append({
                 "type": "stress",
@@ -649,7 +677,6 @@ def get_coach_dashboard_stats(coach_id: int, db: Session = Depends(get_db)):
                 "message": f"A stresszszintje kritikus ({c_recent_logs[0].stress_level}/10). Fokozottan ajánlott az edzésterv könnyítése."
             })
 
-    # Riasztások rendezése és vágása (max 4, hogy ne árassza el a képernyőt)
     alerts = sorted(alerts, key=lambda x: x["type"])[:4]
 
     return {
@@ -665,36 +692,31 @@ def get_coach_dashboard_stats(coach_id: int, db: Session = Depends(get_db)):
 # ==========================================
 # ÚJ: ÁLTALÁNOS AI CHAT ASSZISZTENS (GEMINI)
 # ==========================================
+# Chat (VÉDETT - Szerepkör kényszerítve)
 @app.post("/api/chat")
-def chat_with_ai(req: ChatRequest):
-    # 1. Személyiség (System Prompt) beállítása szerepkör alapján
-    if req.user_type == "COACH":
+def chat_with_ai(req: ChatRequest, current_user: User = Depends(get_current_user)):
+    # BIZTONSÁG: Kikényszerítjük, hogy az AI azt a szerepkört kapja, amivel be vagy jelentkezve!
+    user_role = current_user.role
+
+    if user_role == "COACH":
         system_instruction = "Te egy szuperintelligens szakmai asszisztens vagy személyi edzők számára a Boosted platformon. Tegeződj. Segítesz edzésterveket írni, anatómiát elemezni, táplálkozási makrókat számolni és kliens-stratégiákat alkotni. Légy lényegretörő és szakmai."
     else:
         system_instruction = "Te egy motiváló AI edző és életmód tanácsadó vagy a Boosted platformon. Tegeződj. Segítesz a klienseknek a fitnesz céljaik elérésében, táplálkozási tippeket adsz és motiválod őket. Légy barátságos, empatikus, és adj gyakorlatias tippeket."
 
     try:
-        # 2. Modell inicializálása a rendszer-utasítással
         model = genai.GenerativeModel(
             model_name="gemini-3.1-flash-lite-preview",
             system_instruction=system_instruction,
             generation_config={"response_mime_type": "application/json"}
         )
 
-        # 3. Beszélgetési előzmények (history) formázása a Gemini számára
-        # A frontend "assistant"-et küld, de a Gemini "model"-t használ.
         formatted_history = []
-        
-        # Ha van előzmény, az utolsó üzenet KIVÉTELÉVEL mindent a history-ba rakunk
         if len(req.messages) > 1:
             for msg in req.messages[:-1]:
                 role = "model" if msg.role == "assistant" else "user"
                 formatted_history.append({"role": role, "parts": [msg.content]})
 
-        # Az utolsó üzenet az, amit most küldött a felhasználó
         last_user_message = req.messages[-1].content
-
-        # 4. Chat indítása és üzenet küldése
         chat = model.start_chat(history=formatted_history)
         response = chat.send_message(last_user_message)
         
@@ -707,34 +729,39 @@ def chat_with_ai(req: ChatRequest):
 # ==========================================
 # ÚJ: KAPCSOLAT MEGSZAKÍTÁSA ÉS ÉRTÉKELÉS
 # ==========================================
+# Disconnect (VÉDETT)
 @app.post("/api/disconnect")
-def disconnect_users(req: DisconnectRequest, db: Session = Depends(get_db)):
+def disconnect_users(req: DisconnectRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # BIZTONSÁG: Csak a saját kapcsolatát bonthatja fel valaki!
+    if current_user.id != req.client_id and current_user.id != req.coach_id:
+        raise HTTPException(status_code=403, detail="Nincs jogosultságod ezt a kapcsolatot bontani!")
+
     client = db.query(User).filter(User.id == req.client_id, User.role == "CLIENT").first()
     if not client or client.coach_id != req.coach_id:
         raise HTTPException(status_code=404, detail="Kapcsolat nem található.")
     
-    # 1. Töröljük a klienshez tartozó naplókat és terveket, hogy ne szemeteljenek
     db.query(DailyLog).filter(DailyLog.client_id == client.id).delete()
     db.query(WeeklyPlan).filter(WeeklyPlan.client_id == client.id).delete()
     
-    # 2. Véglegesen töröljük magát a kliens fiókot
     db.delete(client)
     db.commit()
     
     return {"message": "Kapcsolat megszakítva és a kliens fiók véglegesen törölve."}
 
+# Review (VÉDETT)
 @app.post("/api/coach/{coach_id}/review")
-def submit_review(coach_id: int, review: ReviewCreate, db: Session = Depends(get_db)):
+def submit_review(coach_id: int, review: ReviewCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.id != review.client_id:
+        raise HTTPException(status_code=403, detail="Csak saját nevedben értékelhetsz!")
+
     coach = db.query(User).filter(User.id == coach_id, User.role == "COACH").first()
     if not coach:
         raise HTTPException(status_code=404, detail="Edző nem található.")
     
-    # Értékelés mentése
     new_review = Review(coach_id=coach_id, client_id=review.client_id, rating=review.rating, review_text=review.review_text)
     db.add(new_review)
-    db.commit() # Először mentjük, hogy benne legyen az adatbázisban
+    db.commit() 
     
-    # Edző átlagának újraszámolása
     all_reviews = db.query(Review).filter(Review.coach_id == coach_id).all()
     coach.review_count = len(all_reviews)
     if coach.review_count > 0:
@@ -744,10 +771,13 @@ def submit_review(coach_id: int, review: ReviewCreate, db: Session = Depends(get
     return {"message": "Értékelés sikeresen elmentve!"}
 
 # ==========================================
-# ÚJ: DINAMIKUS AI DASHBOARD GENERÁLÓ (GEMINI 2.5 FLASH)
+# ÚJ: DINAMIKUS AI DASHBOARD GENERÁLÓ (GEMINI)
 # ==========================================
+# AI Dashboard (VÉDETT)
 @app.post("/api/generate-ai-dashboard")
-def generate_ai_dashboard(req: AIDashboardRequest):
+def generate_ai_dashboard(req: AIDashboardRequest, current_user: User = Depends(get_current_user)):
+    user_role = current_user.role # Tokenből kényszerítve
+
     system_instruction = (
         "Te egy profi fitnesz adatelemző AI vagy a Boosted platformon. "
         "A válaszod KIZÁRÓLAG egy érvényes JSON objektum lehet, mindenféle markdown jelölés (pl. ```json) nélkül. "
@@ -759,11 +789,10 @@ def generate_ai_dashboard(req: AIDashboardRequest):
         "A szövegek magyar nyelvűek, lényegretörőek és szakmaiak legyenek."
     )
     
-    role_desc = "edzőnek a klienseiről" if req.user_type == "COACH" else "kliensnek a saját fejlődéséről"
+    role_desc = "edzőnek a klienseiről" if user_role == "COACH" else "kliensnek a saját fejlődéséről"
     prompt = f"Készíts elemzést egy {role_desc}. Itt vannak a valós adatok: {req.context_data}. "
 
     try:
-        # A listádból a legújabb, villámgyors modellt használjuk!
         model = genai.GenerativeModel(
             model_name="gemini-3.1-flash-lite-preview",
             system_instruction=system_instruction,
@@ -771,17 +800,18 @@ def generate_ai_dashboard(req: AIDashboardRequest):
         )
 
         response = model.generate_content(prompt)
-        
-        # A kapott szöveget JSON-né alakítjuk és visszaküldjük a frontendnek
         return json.loads(response.text)
         
     except Exception as e:
         print(f"Hiba az AI generálás során: {str(e)}")
         raise HTTPException(status_code=500, detail="Az AI motor nem tudta feldolgozni az adatokat.")
     
-
+# AI Klienselemzés (VÉDETT)
 @app.post("/api/generate-client-analysis")
-def generate_client_analysis(req: ClientAnalysisRequest):
+def generate_client_analysis(req: ClientAnalysisRequest, current_user: User = Depends(get_current_user)):
+    if current_user.role != "COACH":
+        raise HTTPException(status_code=403, detail="Csak edzők elemezhetnek klienseket!")
+
     system_instruction = (
         "Te egy profi fitnesz adatelemző és prediktív AI vagy a Boosted platformon. "
         "A válaszod KIZÁRÓLAG egy érvényes JSON objektum lehet, markdown nélkül. "
